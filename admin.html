@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Dashboard - Free-Riding Experiment</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
+</head>
+<body>
+  <div class="admin-container">
+    <header class="admin-header">
+      <h1>Admin Dashboard</h1>
+      <div class="admin-actions">
+        <button id="refreshBtn" class="btn btn-secondary">Refresh Data</button>
+        <button id="exportBtn" class="btn btn-primary">Export to Excel</button>
+        <button id="resetBtn" class="btn btn-danger">Reset Experiment</button>
+      </div>
+    </header>
+
+    <div class="admin-content">
+      <!-- Experiment Settings -->
+      <section class="admin-section">
+        <h2>Experiment Settings</h2>
+        <div class="settings-grid">
+          <div class="setting-item">
+            <label>Total Rounds:</label>
+            <input type="number" id="totalRoundsSetting" value="10" min="1" max="50">
+          </div>
+          <div class="setting-item">
+            <label>Round Duration (seconds):</label>
+            <input type="number" id="roundDurationSetting" value="120" min="30" max="600">
+          </div>
+          <div class="setting-item">
+            <label>Group Size:</label>
+            <input type="number" id="groupSizeSetting" value="4" min="2" max="10">
+          </div>
+          <div class="setting-item">
+            <label>Endowment per Round:</label>
+            <input type="number" id="endowmentSetting" value="20" min="1" max="100">
+          </div>
+          <div class="setting-item">
+            <label>Multiplier:</label>
+            <input type="number" id="multiplierSetting" value="1.6" min="1" max="3" step="0.1">
+          </div>
+        </div>
+        <button id="saveSettingsBtn" class="btn btn-primary">Save Settings</button>
+      </section>
+
+      <!-- Statistics Overview -->
+      <section class="admin-section">
+        <h2>Statistics Overview</h2>
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-label">Total Participants</div>
+            <div class="stat-number" id="statTotalParticipants">0</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Active Participants</div>
+            <div class="stat-number" id="statActiveParticipants">0</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Completed Rounds</div>
+            <div class="stat-number" id="statCompletedRounds">0</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Total Contributions</div>
+            <div class="stat-number" id="statTotalContributions">0</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Average Contribution</div>
+            <div class="stat-number" id="statAvgContribution">0.0</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Total Payoffs</div>
+            <div class="stat-number" id="statTotalPayoffs">0</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Participants Table -->
+      <section class="admin-section">
+        <h2>Participants</h2>
+        <div class="table-container">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Participant ID</th>
+                <th>Group</th>
+                <th>Current Round</th>
+                <th>Total Contribution</th>
+                <th>Cumulative Payoff</th>
+                <th>Treatment Conditions</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="participantsTableBody">
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Groups Overview -->
+      <section class="admin-section">
+        <h2>Groups</h2>
+        <div class="groups-container" id="groupsContainer">
+        </div>
+      </section>
+
+      <!-- Round-by-Round Data -->
+      <section class="admin-section">
+        <h2>Round-by-Round Data</h2>
+        <div class="round-selector">
+          <label>Select Round:</label>
+          <select id="roundSelector">
+            <option value="all">All Rounds</option>
+          </select>
+        </div>
+        <div class="table-container">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Round</th>
+                <th>Participant</th>
+                <th>Group</th>
+                <th>Contribution</th>
+                <th>Group Total</th>
+                <th>Payoff</th>
+                <th>Timestamp</th>
+              </tr>
+            </thead>
+            <tbody id="roundsTableBody">
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Treatment Distribution -->
+      <section class="admin-section">
+        <h2>Treatment Distribution</h2>
+        <div class="treatment-stats">
+          <div class="treatment-stat-card">
+            <div class="treatment-label">Team Leaderboard Shown</div>
+            <div class="treatment-count" id="treatmentTeamLeaderboard">0</div>
+          </div>
+          <div class="treatment-stat-card">
+            <div class="treatment-label">Individual Leaderboard Shown</div>
+            <div class="treatment-count" id="treatmentIndividualLeaderboard">0</div>
+          </div>
+          <div class="treatment-stat-card">
+            <div class="treatment-label">Contribution Comparison Shown</div>
+            <div class="treatment-count" id="treatmentContributionComparison">0</div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <script src="admin.js"></script>
+</body>
+</html>
+

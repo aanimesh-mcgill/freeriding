@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Free-Riding Experiment</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
+</head>
+<body>
+  <!-- Welcome Screen -->
+  <div id="welcomeScreen" class="screen active">
+    <div class="container">
+      <h1>Free-Riding Experiment</h1>
+      <div class="welcome-content">
+        <h2>Welcome to the Decision-Making Game</h2>
+        <div class="instructions">
+          <h3>Instructions</h3>
+          <p>You will participate in a decision-making game with multiple rounds.</p>
+          <ul>
+            <li>In each round, you will receive <strong>20 tokens</strong> as your endowment.</li>
+            <li>You must decide how many tokens (0-20) to contribute to a group project.</li>
+            <li>Tokens you keep remain yours.</li>
+            <li>Tokens contributed to the group project are multiplied and shared equally among all group members.</li>
+            <li>The multiplier is <strong>1.6</strong> (so 1 token contributed becomes 1.6 tokens shared).</li>
+            <li>Your payoff = (Tokens Kept) + (Total Group Contribution × 1.6) / Group Size</li>
+          </ul>
+          <p><strong>Example:</strong> If you contribute 10 tokens and your group of 4 contributes 40 tokens total, you receive: 10 (kept) + (40 × 1.6) / 4 = 10 + 16 = 26 tokens.</p>
+        </div>
+        <div class="input-section">
+          <label for="participantId">Enter your Participant ID:</label>
+          <input type="text" id="participantId" placeholder="e.g., P001" required>
+          <button id="startBtn" class="btn btn-primary">Start Experiment</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Experiment Screen -->
+  <div id="experimentScreen" class="screen">
+    <div class="container">
+      <div class="experiment-header">
+        <div class="header-left">
+          <h2>Round <span id="currentRound">1</span> of <span id="totalRounds">10</span></h2>
+          <div class="timer-container">
+            <div class="timer-label">Time Remaining:</div>
+            <div id="timer" class="timer">--:--</div>
+          </div>
+        </div>
+        <div class="header-right">
+          <div class="token-display">
+            <span class="token-label">Your Tokens:</span>
+            <span id="remainingTokens" class="token-value">20</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="experiment-content">
+        <div class="decision-section">
+          <h3>Make Your Decision</h3>
+          <p class="instruction-text">How many tokens do you want to contribute to the group project?</p>
+          <div class="contribution-input">
+            <input type="range" id="contributionSlider" min="0" max="20" value="0" step="1">
+            <div class="slider-labels">
+              <span>0</span>
+              <span id="sliderValue">0</span>
+              <span>20</span>
+            </div>
+            <div class="contribution-buttons">
+              <button class="btn-contribute" data-value="0">0</button>
+              <button class="btn-contribute" data-value="5">5</button>
+              <button class="btn-contribute" data-value="10">10</button>
+              <button class="btn-contribute" data-value="15">15</button>
+              <button class="btn-contribute" data-value="20">20</button>
+            </div>
+          </div>
+          <div class="contribution-summary">
+            <div class="summary-item">
+              <span>You contribute:</span>
+              <span id="contributionAmount" class="highlight">0</span> tokens
+            </div>
+            <div class="summary-item">
+              <span>You keep:</span>
+              <span id="keptAmount" class="highlight">20</span> tokens
+            </div>
+          </div>
+          <button id="submitBtn" class="btn btn-primary btn-large" disabled>Submit Decision</button>
+          <div id="submittedMessage" class="submitted-message hidden">
+            <p>✓ Decision submitted! Waiting for round to complete...</p>
+          </div>
+        </div>
+
+        <!-- Treatment Conditions -->
+        <div id="treatmentPanel" class="treatment-panel">
+          <!-- Team Leaderboard -->
+          <div id="teamLeaderboardPanel" class="treatment-section hidden">
+            <h3>Team Leaderboard</h3>
+            <div class="leaderboard-container">
+              <table class="leaderboard-table">
+                <thead>
+                  <tr>
+                    <th>Rank</th>
+                    <th>Team</th>
+                    <th>Total Contribution</th>
+                  </tr>
+                </thead>
+                <tbody id="teamLeaderboardBody">
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Individual Leaderboard -->
+          <div id="individualLeaderboardPanel" class="treatment-section hidden">
+            <h3>Individual Leaderboard</h3>
+            <div class="leaderboard-container">
+              <table class="leaderboard-table">
+                <thead>
+                  <tr>
+                    <th>Rank</th>
+                    <th>Participant</th>
+                    <th>Total Contribution</th>
+                  </tr>
+                </thead>
+                <tbody id="individualLeaderboardBody">
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Contribution Comparison -->
+          <div id="contributionComparisonPanel" class="treatment-section hidden">
+            <h3>Your Contribution vs Team Average</h3>
+            <div class="comparison-container">
+              <div class="comparison-item">
+                <span class="comparison-label">Your Contribution:</span>
+                <span id="yourContribution" class="comparison-value">0</span>
+              </div>
+              <div class="comparison-item">
+                <span class="comparison-label">Team Average:</span>
+                <span id="teamAverage" class="comparison-value">0</span>
+              </div>
+              <div id="comparisonStatus" class="comparison-status">
+                <span id="comparisonMessage"></span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Round Results -->
+        <div id="roundResults" class="round-results hidden">
+          <h3>Round Results</h3>
+          <div class="results-grid">
+            <div class="result-card">
+              <div class="result-label">Your Contribution</div>
+              <div class="result-value" id="resultYourContribution">0</div>
+            </div>
+            <div class="result-card">
+              <div class="result-label">Group Total</div>
+              <div class="result-value" id="resultGroupTotal">0</div>
+            </div>
+            <div class="result-card">
+              <div class="result-label">Your Share</div>
+              <div class="result-value" id="resultYourShare">0</div>
+            </div>
+            <div class="result-card">
+              <div class="result-label">Round Payoff</div>
+              <div class="result-value" id="resultPayoff">0</div>
+            </div>
+            <div class="result-card">
+              <div class="result-label">Cumulative Payoff</div>
+              <div class="result-value" id="resultCumulative">0</div>
+            </div>
+          </div>
+          <button id="nextRoundBtn" class="btn btn-primary btn-large hidden">Continue to Next Round</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- End Screen -->
+  <div id="endScreen" class="screen">
+    <div class="container">
+      <h1>Experiment Complete!</h1>
+      <div class="end-content">
+        <h2>Thank you for participating</h2>
+        <div class="final-summary">
+          <h3>Your Final Results</h3>
+          <div class="summary-stats">
+            <div class="stat-item">
+              <span class="stat-label">Total Rounds:</span>
+              <span class="stat-value" id="finalTotalRounds">0</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-label">Total Contribution:</span>
+              <span class="stat-value" id="finalTotalContribution">0</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-label">Final Payoff:</span>
+              <span class="stat-value" id="finalPayoff">0</span> tokens
+            </div>
+            <div class="stat-item">
+              <span class="stat-label">Average Contribution:</span>
+              <span class="stat-value" id="finalAvgContribution">0</span>
+            </div>
+          </div>
+        </div>
+        <p class="completion-message">Your responses have been recorded. You may now close this window.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Loading Overlay -->
+  <div id="loadingOverlay" class="loading-overlay hidden">
+    <div class="spinner"></div>
+    <p>Loading...</p>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
+
