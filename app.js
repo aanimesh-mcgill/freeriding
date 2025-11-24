@@ -253,7 +253,8 @@ async function loadRound() {
 
 async function getCurrentRound() {
   const participantDoc = await db.collection('participants').doc(participantId).get();
-  return participantDoc.exists ? participantDoc.data().currentRound : 1;
+  const data = participantDoc.data();
+  return data ? data.currentRound : 1;
 }
 
 function startTimer() {
@@ -372,7 +373,8 @@ async function autoSubmit() {
 async function checkRoundCompletion() {
   // Check if all group members have submitted
   const groupDoc = await db.collection('groups').doc(groupId).get();
-  if (!groupDoc.exists) return;
+  const groupData = groupDoc.data();
+  if (!groupData) return;
   
   const members = groupDoc.data().members || [];
   const contributionsSnapshot = await db.collection('contributions')
