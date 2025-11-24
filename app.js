@@ -73,8 +73,8 @@ function initializeEventListeners() {
 async function loadExperimentSettings() {
   try {
     const settingsDoc = await db.collection('settings').doc('experiment').get();
-    if (settingsDoc.exists) {
-      const settings = settingsDoc.data();
+    const settings = settingsDoc.data();
+    if (settings) {
       totalRounds = settings.totalRounds || 10;
       roundDuration = settings.roundDuration || 120;
       groupSize = settings.groupSize || 4;
@@ -101,9 +101,9 @@ async function startExperiment() {
   try {
     // Check if participant already exists
     const participantDoc = await db.collection('participants').doc(participantId).get();
+    const data = participantDoc.data();
     
-    if (participantDoc.exists) {
-      const data = participantDoc.data();
+    if (data) {
       currentRound = data.currentRound || 1;
       groupId = data.groupId || '';
       cumulativePayoff = data.cumulativePayoff || 0;

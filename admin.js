@@ -34,8 +34,8 @@ function initializeEventListeners() {
 async function loadExperimentSettings() {
   try {
     const settingsDoc = await db.collection('settings').doc('experiment').get();
-    if (settingsDoc.exists) {
-      const settings = settingsDoc.data();
+    const settings = settingsDoc.data();
+    if (settings) {
       document.getElementById('totalRoundsSetting').value = settings.totalRounds || 10;
       document.getElementById('roundDurationSetting').value = settings.roundDuration || 120;
       document.getElementById('groupSizeSetting').value = settings.groupSize || 4;
