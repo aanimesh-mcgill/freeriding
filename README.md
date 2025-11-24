@@ -1,6 +1,8 @@
 # Free-Riding Experiment Application
 
-A comprehensive web application for conducting free-riding experiments based on public goods game design. This application implements treatment conditions (team leaderboards, individual leaderboards, contribution comparisons) and includes features for group formation, payoff calculations, timers, and an admin dashboard.
+A comprehensive web application for conducting free-riding experiments based on public goods game design.
+
+> **Status**: CI/CD pipeline is active - deployments happen automatically on every push to main branch. This application implements treatment conditions (team leaderboards, individual leaderboards, contribution comparisons) and includes features for group formation, payoff calculations, timers, and an admin dashboard.
 
 ## Features
 
