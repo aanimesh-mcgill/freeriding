@@ -182,29 +182,48 @@ These can be changed in the admin dashboard or by modifying the `settings` colle
 
 Repository: https://github.com/aanimesh-mcgill/freeriding
 
-### Connecting to GitHub
+### CI/CD Pipeline (Automatic Deployment)
 
-1. **Initialize Git Repository** (if not already initialized)
+The repository includes a GitHub Actions workflow that automatically deploys to Firebase when code is pushed to the `main` branch.
+
+#### Setup CI/CD (One-time)
+
+1. **Get Firebase CI Token**
    ```bash
-   git init
+   firebase login:ci
    ```
+   Copy the generated token.
 
-2. **Add Remote Repository**
-   ```bash
-   git remote add origin https://github.com/aanimesh-mcgill/freeriding.git
-   ```
+2. **Add Token to GitHub Secrets**
+   - Go to: https://github.com/aanimesh-mcgill/freeriding/settings/secrets/actions
+   - Click **New repository secret**
+   - Name: `FIREBASE_TOKEN`
+   - Value: Paste the token from step 1
+   - Click **Add secret**
 
-3. **Add and Commit Files**
+3. **Push Code to Trigger First Deployment**
    ```bash
-   git add .
-   git commit -m "Initial commit: Free-riding experiment application"
-   ```
-
-4. **Push to GitHub**
-   ```bash
-   git branch -M main
    git push -u origin main
    ```
+
+#### How It Works
+
+- **Automatic**: Every push to `main` branch triggers deployment
+- **Manual**: Can also trigger from GitHub Actions tab
+- **Deploys**: Both Firestore rules and Firebase Hosting
+- **Status**: Check deployment status in GitHub Actions tab
+
+See `.github/workflows/README.md` for detailed instructions.
+
+### Manual Git Operations
+
+If you need to push changes manually:
+
+```bash
+git add .
+git commit -m "Your commit message"
+git push origin main
+```
 
 ## Security Considerations
 
