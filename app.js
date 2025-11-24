@@ -21,6 +21,7 @@ let roundDuration = 120; // seconds
 let groupSize = 4;
 let endowment = 20;
 let multiplier = 1.6;
+let resultsDelay = 3; // seconds to wait before showing results
 let groupId = "";
 let contribution = 0;
 let submitted = false;
@@ -80,6 +81,7 @@ async function loadExperimentSettings() {
       groupSize = settings.groupSize || 4;
       endowment = settings.endowment || 20;
       multiplier = settings.multiplier || 1.6;
+      resultsDelay = settings.resultsDelay || 3;
       
       document.getElementById('totalRounds').textContent = totalRounds;
     }
@@ -392,8 +394,10 @@ async function checkRoundCompletion() {
     // Calculate payoffs for all members
     await calculateRoundPayoffs();
     
-    // Show results
-    await showRoundResults();
+    // Show results after delay
+    setTimeout(async () => {
+      await showRoundResults();
+    }, resultsDelay * 1000);
   } else {
     // Set up listener for round completion
     const unsubscribe = db.collection('contributions')
@@ -501,20 +505,34 @@ async function showRoundResults() {
   const participantDoc = await db.collection('participants').doc(participantId).get();
   cumulativePayoff = participantDoc.data().cumulativePayoff || 0;
   
-  // Display results
-  document.getElementById('resultYourContribution').textContent = contribution;
-  document.getElementById('resultGroupTotal').textContent = groupTotal;
-  document.getElementById('resultYourShare').textContent = payoffData.groupShare.toFixed(2);
-  document.getElementById('resultPayoff').textContent = payoffData.payoff.toFixed(2);
-  document.getElementById('resultCumulative').textContent = cumulativePayoff.toFixed(2);
+  // Hide decision section and show results after delay
+  const decisionSection = document.getElementById('decision-section');
+  const roundResults = document.getElementById('roundResults');
   
-  document.getElementById('roundResults').classList.remove('hidden');
-  document.getElementById('nextRoundBtn').classList.remove('hidden');
+  // Hide decision section immediately
+  decisionSection.style.display = 'none';
   
-  // Update contribution comparison if shown
-  if (showContributionComparison) {
-    await updateContributionComparison();
-  }
+  // Wait for configured delay before showing results
+  setTimeout(() => {
+    // Display results
+    document.getElementById('resultYourContribution').textContent = contribution;
+    document.getElementById('resultGroupTotal').textContent = groupTotal;
+    document.getElementById('resultYourShare').textContent = payoffData.groupShare.toFixed(2);
+    document.getElementById('resultPayoff').textContent = payoffData.payoff.toFixed(2);
+    document.getElementById('resultCumulative').textContent = cumulativePayoff.toFixed(2);
+    
+    // Show results section
+    roundResults.classList.remove('hidden');
+    document.getElementById('nextRoundBtn').classList.remove('hidden');
+    
+    // Scroll to results smoothly
+    roundResults.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    
+    // Update contribution comparison if shown
+    if (showContributionComparison) {
+      updateContributionComparison();
+    }
+  }, resultsDelay * 1000);
 }
 
 async function updateContributionComparison() {

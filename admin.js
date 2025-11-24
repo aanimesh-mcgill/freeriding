@@ -41,6 +41,7 @@ async function loadExperimentSettings() {
       document.getElementById('groupSizeSetting').value = settings.groupSize || 4;
       document.getElementById('endowmentSetting').value = settings.endowment || 20;
       document.getElementById('multiplierSetting').value = settings.multiplier || 1.6;
+      document.getElementById('resultsDelaySetting').value = settings.resultsDelay || 3;
     }
   } catch (error) {
     console.error('Error loading settings:', error);
@@ -54,6 +55,7 @@ async function saveSettings() {
     groupSize: parseInt(document.getElementById('groupSizeSetting').value),
     endowment: parseInt(document.getElementById('endowmentSetting').value),
     multiplier: parseFloat(document.getElementById('multiplierSetting').value),
+    resultsDelay: parseInt(document.getElementById('resultsDelaySetting').value),
     updatedAt: firebase.firestore.FieldValue.serverTimestamp()
   };
   
