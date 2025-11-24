@@ -503,14 +503,14 @@ async function showRoundResults() {
   
   // Update participant cumulative payoff
   const participantDoc = await db.collection('participants').doc(participantId).get();
-  cumulativePayoff = participantDoc.data().cumulativePayoff || 0;
-  
-  // Hide decision section and show results after delay
-  const decisionSection = document.getElementById('decision-section');
-  const roundResults = document.getElementById('roundResults');
+  const participantData = participantDoc.data();
+  cumulativePayoff = participantData ? participantData.cumulativePayoff || 0 : 0;
   
   // Hide decision section immediately
-  decisionSection.style.display = 'none';
+  const decisionSection = document.getElementById('decision-section');
+  if (decisionSection) {
+    decisionSection.style.display = 'none';
+  }
   
   // Wait for configured delay before showing results
   setTimeout(() => {
@@ -522,10 +522,11 @@ async function showRoundResults() {
     document.getElementById('resultCumulative').textContent = cumulativePayoff.toFixed(2);
     
     // Show results section
+    const roundResults = document.getElementById('roundResults');
     roundResults.classList.remove('hidden');
     document.getElementById('nextRoundBtn').classList.remove('hidden');
     
-    // Scroll to results smoothly
+    // Scroll to top of results smoothly
     roundResults.scrollIntoView({ behavior: 'smooth', block: 'start' });
     
     // Update contribution comparison if shown
