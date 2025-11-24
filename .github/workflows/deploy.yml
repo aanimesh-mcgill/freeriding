@@ -23,6 +23,20 @@ jobs:
       - name: Install Firebase CLI
         run: npm install -g firebase-tools
       
+      - name: Check Firebase Token
+        run: |
+          if [ -z "${{ secrets.FIREBASE_TOKEN }}" ]; then
+            echo "❌ ERROR: FIREBASE_TOKEN secret is not set!"
+            echo "Please add FIREBASE_TOKEN to GitHub Secrets:"
+            echo "1. Go to: https://github.com/aanimesh-mcgill/freeriding/settings/secrets/actions"
+            echo "2. Click 'New repository secret'"
+            echo "3. Name: FIREBASE_TOKEN"
+            echo "4. Value: Run 'firebase login:ci' locally to get the token"
+            exit 1
+          else
+            echo "✅ FIREBASE_TOKEN is set"
+          fi
+      
       - name: Deploy Firestore Rules
         run: firebase deploy --only firestore:rules --token "${{ secrets.FIREBASE_TOKEN }}"
         env:
