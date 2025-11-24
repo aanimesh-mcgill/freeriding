@@ -394,10 +394,8 @@ async function checkRoundCompletion() {
     // Calculate payoffs for all members
     await calculateRoundPayoffs();
     
-    // Show results after delay
-    setTimeout(async () => {
-      await showRoundResults();
-    }, resultsDelay * 1000);
+    // Show results (delay is handled inside showRoundResults)
+    await showRoundResults();
   } else {
     // Set up listener for round completion
     const unsubscribe = db.collection('contributions')
