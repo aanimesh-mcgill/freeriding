@@ -1191,22 +1191,14 @@ async function showRoundResults() {
       roundResults.scrollIntoView({ behavior: 'smooth', block: 'start' });
       
       // Show leaderboards and social norm based on infoType
-      // Only load leaderboards if not round 1
-      if (currentRound > 1) {
+      // Load leaderboards after round completes (including Round 1)
+      if (experimentConfig.infoType !== 'noInfo') {
         await loadLeaderboards();
         
         // Auto-switch to leaderboard tab if info is shown
-        if (experimentConfig.infoType !== 'noInfo') {
-          setTimeout(() => {
-            switchTab('leaderboard');
-          }, 500);
-        }
-      } else {
-        // Round 1 - show message that leaderboard will be available after round 1
-        const leaderboardContent = document.getElementById('leaderboardContent');
-        if (leaderboardContent) {
-          leaderboardContent.innerHTML = '<p style="text-align: center; color: #666; padding: 20px;">Leaderboard will be available after Round 1 is complete.</p>';
-        }
+        setTimeout(() => {
+          switchTab('leaderboard');
+        }, 500);
       }
     }, resultsDelay * 1000);
   }
