@@ -1381,7 +1381,7 @@ async function loadTeamLeaderboard() {
     row.insertCell(0).textContent = index + 1;
     let teamName;
     if (team.isFocal) {
-      teamName = 'Team 5'; // Always Team 5 for focal team
+      teamName = 'Your Team'; // Display as "Your Team" but internally it's Team 5
     } else {
       const teamNum = teamNumberMap.get(team.id) || availableNumbers[numberIndex % availableNumbers.length];
       teamName = `Team ${teamNum}`;
@@ -1633,7 +1633,7 @@ async function loadTeamLeaderboardForTab() {
     row.insertCell(0).textContent = index + 1;
     let teamName;
     if (team.isFocal) {
-      teamName = 'Team 5'; // Always Team 5 for focal team
+      teamName = 'Your Team'; // Display as "Your Team" but internally it's Team 5
     } else {
       const teamNum = teamNumberMap.get(team.id) || availableNumbers[numberIndex % availableNumbers.length];
       teamName = `Team ${teamNum}`;
