@@ -993,24 +993,15 @@ async function showRoundResults() {
     // Scroll to top of results smoothly
     roundResults.scrollIntoView({ behavior: 'smooth', block: 'start' });
     
-    // Show leaderboards and social norm based on config
-    if (experimentConfig.infoDisplayTiming === 'eachRound') {
-      // Load and show leaderboards
-      await loadLeaderboards();
-      
-      // Show social norm if enabled
-      if (experimentConfig.socialNormDisplay !== 'none') {
-        await showSocialNorm();
-      }
-      
-      // Auto-switch to leaderboard tab if any leaderboard is enabled
-      if (experimentConfig.showTeamLeaderboard || 
-          experimentConfig.showIndividualLeaderboardWithinTeam || 
-          experimentConfig.showIndividualLeaderboardAcrossTeams) {
-    setTimeout(() => {
-          switchTab('leaderboard');
-        }, 500);
-      }
+    // Show leaderboards and social norm based on infoType
+    // Load and show leaderboards based on infoType
+    await loadLeaderboards();
+    
+    // Auto-switch to leaderboard tab if info is shown
+    if (experimentConfig.infoType !== 'noInfo') {
+      setTimeout(() => {
+        switchTab('leaderboard');
+      }, 500);
     }
     
     // Update contribution comparison if shown (for backward compatibility)
@@ -1542,12 +1533,9 @@ async function showSocialNorm() {
   // Calculate average
   const avg = contributions.reduce((sum, c) => sum + c, 0) / contributions.length;
   
-  // Calculate standard deviation if needed
-  let stdDev = 0;
-  if (experimentConfig.socialNormDisplay === 'avgAndStdDev') {
-    const variance = contributions.reduce((sum, c) => sum + Math.pow(c - avg, 2), 0) / contributions.length;
-    stdDev = Math.sqrt(variance);
-  }
+  // For social norm infoType, always show average and standard deviation
+  const variance = contributions.reduce((sum, c) => sum + Math.pow(c - avg, 2), 0) / contributions.length;
+  const stdDev = Math.sqrt(variance);
   
   // Display in social norm panel
   const socialNormPanel = document.getElementById('socialNormPanel');
