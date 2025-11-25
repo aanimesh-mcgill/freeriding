@@ -1595,7 +1595,7 @@ async function loadTeamLeaderboard() {
     }
   });
   
-  // Display top 10
+  // Display top 10 - update DOM once
   tbody.innerHTML = '';
   allTeams.slice(0, 10).forEach((team, index) => {
     const row = tbody.insertRow();
@@ -1657,12 +1657,18 @@ async function loadLeaderboards() {
   const leaderboardContent = document.getElementById('leaderboardContent');
   if (!leaderboardContent) return;
   
+  // Show loading indicator immediately to prevent blank screen
+  leaderboardContent.innerHTML = '<div style="text-align: center; padding: 40px; color: #666;"><div class="spinner" style="border: 4px solid #f3f3f3; border-top: 4px solid #667eea; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 0 auto 20px;"></div><p>Loading leaderboard...</p></div>';
+  
   // Check if current round has been completed (user has submitted contribution)
-  const userContribution = await db.collection('contributions')
-    .where('participantId', '==', participantId)
-    .where('round', '==', currentRound)
-    .limit(1)
-    .get();
+  const [userContribution, roundData] = await Promise.all([
+    db.collection('contributions')
+      .where('participantId', '==', participantId)
+      .where('round', '==', currentRound)
+      .limit(1)
+      .get(),
+    db.collection('rounds').doc(`${groupId}_${currentRound}`).get()
+  ]);
   
   // If user hasn't submitted for current round yet, show waiting message
   if (userContribution.empty) {
@@ -1678,15 +1684,7 @@ async function loadLeaderboards() {
     }
   }
   
-  // Check if round has completed (all team members have contributed)
-  const contributionsSnapshot = await db.collection('contributions')
-    .where('groupId', '==', groupId)
-    .where('round', '==', currentRound)
-    .get();
-  
   // If round hasn't completed yet (not all contributions in), show waiting message
-  // Note: For simulated members, we create contributions immediately, so this check ensures round is processed
-  const roundData = await db.collection('rounds').doc(`${groupId}_${currentRound}`).get();
   if (!roundData.exists || !roundData.data().completed) {
     if (experimentConfig.infoType === 'noInfo') {
       leaderboardContent.innerHTML = '';
@@ -1700,34 +1698,45 @@ async function loadLeaderboards() {
     }
   }
   
+  // Clear and load based on infoType - build all HTML first, then populate data
   leaderboardContent.innerHTML = '';
   
-  // Load based on infoType
-  switch (experimentConfig.infoType) {
-    case 'teamLB':
-      await loadTeamLeaderboardForTab();
-      break;
-    case 'indLBWithin':
-      await loadIndividualLeaderboardWithinTeam();
-      break;
-    case 'bothLBWithin':
-      await loadTeamLeaderboardForTab();
-      await loadIndividualLeaderboardWithinTeam();
-      break;
-    case 'bothLBAcross':
-      await loadTeamLeaderboardForTab();
-      await loadIndividualLeaderboardAcrossTeams();
-      break;
-    case 'socialNorm':
-      await showSocialNorm();
-      break;
-    case 'indLBAcross':
-      await loadIndividualLeaderboardAcrossTeams();
-      break;
-    case 'noInfo':
-    default:
-      // No leaderboards shown
-      break;
+  // Load based on infoType - use Promise.all for parallel loading when multiple leaderboards
+  try {
+    switch (experimentConfig.infoType) {
+      case 'teamLB':
+        await loadTeamLeaderboardForTab();
+        break;
+      case 'indLBWithin':
+        await loadIndividualLeaderboardWithinTeam();
+        break;
+      case 'bothLBWithin':
+        // Build both structures first, then load data in parallel
+        await Promise.all([
+          loadTeamLeaderboardForTab(),
+          loadIndividualLeaderboardWithinTeam()
+        ]);
+        break;
+      case 'bothLBAcross':
+        await Promise.all([
+          loadTeamLeaderboardForTab(),
+          loadIndividualLeaderboardAcrossTeams()
+        ]);
+        break;
+      case 'socialNorm':
+        await showSocialNorm();
+        break;
+      case 'indLBAcross':
+        await loadIndividualLeaderboardAcrossTeams();
+        break;
+      case 'noInfo':
+      default:
+        // No leaderboards shown
+        break;
+    }
+  } catch (error) {
+    console.error('Error loading leaderboards:', error);
+    leaderboardContent.innerHTML = '<p style="text-align: center; color: #e74c3c; padding: 20px;">Error loading leaderboard. Please refresh the page.</p>';
   }
 }
 
@@ -1749,16 +1758,24 @@ async function loadTeamLeaderboardForTab() {
           </tr>
         </thead>
         <tbody id="teamLeaderboardTabBody">
+          <tr><td colspan="4" style="text-align: center; padding: 20px; color: #999;">Loading...</td></tr>
         </tbody>
       </table>
     </div>
   `;
   leaderboardContent.appendChild(section);
   
-  // Get all groups for this user's experiment session only
-  const userGroupsSnapshot = await db.collection('groups')
-    .where('participantId', '==', participantId)
-    .get();
+  const tbody = document.getElementById('teamLeaderboardTabBody');
+  
+  // Get all groups for this user's experiment session only - do this in parallel with other queries
+  const [userGroupsSnapshot, focalContributions] = await Promise.all([
+    db.collection('groups')
+      .where('participantId', '==', participantId)
+      .get(),
+    db.collection('contributions')
+      .where('groupId', '==', groupId)
+      .get()
+  ]);
   
   // Fallback if no groups found with participantId
   const groupsSnapshot = userGroupsSnapshot.empty 
@@ -1771,9 +1788,6 @@ async function loadTeamLeaderboardForTab() {
   // Calculate focal team's cumulative and current round totals
   let focalTeamTotal = 0;
   let focalTeamRoundTotal = 0;
-  const focalContributions = await db.collection('contributions')
-    .where('groupId', '==', groupId)
-    .get();
   focalContributions.forEach(doc => {
     const contrib = doc.data().contribution;
     focalTeamTotal += contrib;
@@ -1782,55 +1796,62 @@ async function loadTeamLeaderboardForTab() {
     }
   });
   
-  // Get other teams' cumulative and current round totals
-  for (const groupDoc of groupsSnapshot.docs) {
-    const gid = groupDoc.id;
-    if (gid === groupId) continue; // Skip focal team, already calculated
-    
-    // Get saved contributions from Firestore
-    const contributionsSnapshot = await db.collection('contributions')
-      .where('groupId', '==', gid)
-      .get();
-    
-    let total = 0;
-    let roundTotal = 0;
-    
-    // Calculate cumulative from all saved contributions
-    contributionsSnapshot.forEach(doc => {
-      const contrib = doc.data().contribution;
-      total += contrib;
-      if (doc.data().round === currentRound) {
-        roundTotal += contrib;
+  // Get other teams' contributions in parallel
+  const otherTeamQueries = groupsSnapshot.docs
+    .filter(doc => doc.id !== groupId)
+    .map(async (groupDoc) => {
+      const gid = groupDoc.id;
+      const [contributionsSnapshot, simDoc] = await Promise.all([
+        db.collection('contributions')
+          .where('groupId', '==', gid)
+          .get(),
+        db.collection('simulatedContributions').doc(`${gid}_${currentRound}`).get()
+      ]);
+      
+      let total = 0;
+      let roundTotal = 0;
+      
+      // Calculate cumulative from all saved contributions
+      contributionsSnapshot.forEach(doc => {
+        const contrib = doc.data().contribution;
+        total += contrib;
+        if (doc.data().round === currentRound) {
+          roundTotal += contrib;
+        }
+      });
+      
+      // If no contributions for current round, get simulated contributions and add realistic variation
+      if (roundTotal === 0 && currentRound <= totalRounds) {
+        if (simDoc.exists) {
+          const simContributions = simDoc.data().contributions || [];
+          // Calculate team total from simulated contributions with some noise
+          simContributions.forEach(sim => {
+            // Add small random noise (±2 tokens) to make it more realistic
+            const noise = Math.round((Math.random() - 0.5) * 4); // -2 to +2
+            const contribWithNoise = Math.max(0, Math.min(endowment, sim.contribution + noise));
+            roundTotal += contribWithNoise;
+          });
+          // Add current round to cumulative
+          total += roundTotal;
+        } else {
+          // If no simulated contributions exist, generate realistic values
+          // Each team has 6 members, average contribution around 10-12 tokens per member
+          const baseTeamTotal = Math.round((10 + Math.random() * 4) * 6); // 60-84 tokens per team
+          const noise = Math.round((Math.random() - 0.5) * 20); // ±10 tokens variation
+          roundTotal = Math.max(30, Math.min(120, baseTeamTotal + noise));
+          total += roundTotal;
+        }
       }
+      
+      return { gid, total, roundTotal };
     });
-    
-    // If no contributions for current round, get simulated contributions and add realistic variation
-    if (roundTotal === 0 && currentRound <= totalRounds) {
-      const simDoc = await db.collection('simulatedContributions').doc(`${gid}_${currentRound}`).get();
-      if (simDoc.exists) {
-        const simContributions = simDoc.data().contributions || [];
-        // Calculate team total from simulated contributions with some noise
-        simContributions.forEach(sim => {
-          // Add small random noise (±2 tokens) to make it more realistic
-          const noise = Math.round((Math.random() - 0.5) * 4); // -2 to +2
-          const contribWithNoise = Math.max(0, Math.min(endowment, sim.contribution + noise));
-          roundTotal += contribWithNoise;
-        });
-        // Add current round to cumulative
-        total += roundTotal;
-      } else {
-        // If no simulated contributions exist, generate realistic values
-        // Each team has 6 members, average contribution around 10-12 tokens per member
-        const baseTeamTotal = Math.round((10 + Math.random() * 4) * 6); // 60-84 tokens per team
-        const noise = Math.round((Math.random() - 0.5) * 20); // ±10 tokens variation
-        roundTotal = Math.max(30, Math.min(120, baseTeamTotal + noise));
-        total += roundTotal;
-      }
-    }
-    
+  
+  // Wait for all queries to complete
+  const otherTeamResults = await Promise.all(otherTeamQueries);
+  otherTeamResults.forEach(({ gid, total, roundTotal }) => {
     groupTotals[gid] = total;
     groupRoundTotals[gid] = roundTotal;
-  }
+  });
   
   // Determine target position for focal team based on teamContribution (high = top 25%, low = bottom 25%)
   const allTeamTotals = Object.values(groupTotals);
