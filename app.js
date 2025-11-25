@@ -1356,26 +1356,21 @@ async function loadTeamLeaderboard() {
   // Sort by total
   allTeams.sort((a, b) => b.total - a.total);
   
-  // Assign unique team numbers to avoid duplicates
-  let teamCounter = 1;
-  const usedTeamNumbers = new Set();
+  // Assign unique team numbers: focal team is always Team 5, others are 1-4, 6-10
+  const availableNumbers = [1, 2, 3, 4, 6, 7, 8, 9, 10]; // Skip 5 for focal team
+  let numberIndex = 0;
   const teamNumberMap = new Map();
   
-  // First, assign number to focal team (but it will be named "Your Team")
-  teamNumberMap.set(groupId, 0); // 0 means "Your Team"
+  // Always assign Team 5 to focal team
+  teamNumberMap.set(groupId, 5);
   
-  // Assign numbers to all other teams
+  // Assign numbers 1-4, 6-10 to all other teams
   allTeams.forEach(team => {
     if (team.isFocal) return; // Skip focal team
     
-    if (!teamNumberMap.has(team.id)) {
-      // Find next available team number
-      while (usedTeamNumbers.has(teamCounter)) {
-        teamCounter++;
-      }
-      teamNumberMap.set(team.id, teamCounter);
-      usedTeamNumbers.add(teamCounter);
-      teamCounter++;
+    if (!teamNumberMap.has(team.id) && numberIndex < availableNumbers.length) {
+      teamNumberMap.set(team.id, availableNumbers[numberIndex]);
+      numberIndex++;
     }
   });
   
@@ -1386,9 +1381,9 @@ async function loadTeamLeaderboard() {
     row.insertCell(0).textContent = index + 1;
     let teamName;
     if (team.isFocal) {
-      teamName = 'Your Team';
+      teamName = 'Team 5'; // Always Team 5 for focal team
     } else {
-      const teamNum = teamNumberMap.get(team.id) || 1;
+      const teamNum = teamNumberMap.get(team.id) || availableNumbers[numberIndex % availableNumbers.length];
       teamName = `Team ${teamNum}`;
     }
     row.insertCell(1).textContent = teamName;
@@ -1611,26 +1606,21 @@ async function loadTeamLeaderboardForTab() {
   // Sort by total
   allTeams.sort((a, b) => b.total - a.total);
   
-  // Assign unique team numbers to avoid duplicates
-  let teamCounter = 1;
-  const usedTeamNumbers = new Set();
+  // Assign unique team numbers: focal team is always Team 5, others are 1-4, 6-10
+  const availableNumbers = [1, 2, 3, 4, 6, 7, 8, 9, 10]; // Skip 5 for focal team
+  let numberIndex = 0;
   const teamNumberMap = new Map();
   
-  // First, assign number to focal team (but it will be named "Your Team")
-  teamNumberMap.set(groupId, 0); // 0 means "Your Team"
+  // Always assign Team 5 to focal team
+  teamNumberMap.set(groupId, 5);
   
-  // Assign numbers to all other teams
+  // Assign numbers 1-4, 6-10 to all other teams
   allTeams.forEach(team => {
     if (team.isFocal) return; // Skip focal team
     
-    if (!teamNumberMap.has(team.id)) {
-      // Find next available team number
-      while (usedTeamNumbers.has(teamCounter)) {
-        teamCounter++;
-      }
-      teamNumberMap.set(team.id, teamCounter);
-      usedTeamNumbers.add(teamCounter);
-      teamCounter++;
+    if (!teamNumberMap.has(team.id) && numberIndex < availableNumbers.length) {
+      teamNumberMap.set(team.id, availableNumbers[numberIndex]);
+      numberIndex++;
     }
   });
   
@@ -1643,9 +1633,9 @@ async function loadTeamLeaderboardForTab() {
     row.insertCell(0).textContent = index + 1;
     let teamName;
     if (team.isFocal) {
-      teamName = 'Your Team';
+      teamName = 'Team 5'; // Always Team 5 for focal team
     } else {
-      const teamNum = teamNumberMap.get(team.id) || 1;
+      const teamNum = teamNumberMap.get(team.id) || availableNumbers[numberIndex % availableNumbers.length];
       teamName = `Team ${teamNum}`;
     }
     row.insertCell(1).textContent = teamName;
