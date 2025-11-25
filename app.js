@@ -845,17 +845,63 @@ async function submitContribution() {
     return;
   }
   
-  // Show confirmation dialog
-  const confirmed = confirm(
-    `Confirm your contribution:\n\n` +
-    `You will contribute: ${contribution} tokens\n` +
-    `You will keep: ${endowment - contribution} tokens\n\n` +
-    `Click OK to confirm, or Cancel to change your contribution.`
-  );
+  // Show confirmation modal
+  const modal = document.getElementById('confirmationModal');
+  const confirmContributionAmount = document.getElementById('confirmContributionAmount');
+  const confirmKeepAmount = document.getElementById('confirmKeepAmount');
   
-  if (!confirmed) {
-    return; // User cancelled, allow them to change contribution
+  if (modal && confirmContributionAmount && confirmKeepAmount) {
+    confirmContributionAmount.textContent = contribution;
+    confirmKeepAmount.textContent = endowment - contribution;
+    modal.classList.remove('hidden');
+    
+    // Wait for user confirmation
+    return new Promise((resolve) => {
+      const confirmBtn = document.getElementById('confirmBtn');
+      const cancelBtn = document.getElementById('cancelBtn');
+      
+      const handleConfirm = () => {
+        modal.classList.add('hidden');
+        confirmBtn.removeEventListener('click', handleConfirm);
+        cancelBtn.removeEventListener('click', handleCancel);
+        resolve(true);
+      };
+      
+      const handleCancel = () => {
+        modal.classList.add('hidden');
+        confirmBtn.removeEventListener('click', handleConfirm);
+        cancelBtn.removeEventListener('click', handleCancel);
+        resolve(false);
+      };
+      
+      confirmBtn.addEventListener('click', handleConfirm);
+      cancelBtn.addEventListener('click', handleCancel);
+    }).then((confirmed) => {
+      if (!confirmed) {
+        return; // User cancelled, allow them to change contribution
+      }
+      // Continue with submission
+      submitContributionAfterConfirm();
+    });
+  } else {
+    // Fallback to alert if modal doesn't exist
+    const confirmed = confirm(
+      `Confirm your contribution:\n\n` +
+      `You will contribute: ${contribution} tokens\n` +
+      `You will keep: ${endowment - contribution} tokens\n\n` +
+      `Click OK to confirm, or Cancel to change your contribution.`
+    );
+    
+    if (!confirmed) {
+      return; // User cancelled, allow them to change contribution
+    }
+    submitContributionAfterConfirm();
   }
+  
+  return; // Exit early, actual submission happens in submitContributionAfterConfirm
+}
+
+async function submitContributionAfterConfirm() {
   
   showLoading(true);
   
@@ -1163,7 +1209,12 @@ async function showRoundResults() {
       document.getElementById('resultPayoff').textContent = payoffData.payoff.toFixed(2);
       document.getElementById('resultCumulative').textContent = cumulativePayoff.toFixed(2);
       
-      // Show leaderboards and social norm based on infoType
+      // Show results section and next round button first
+      const roundResults = document.getElementById('roundResults');
+      roundResults.classList.remove('hidden');
+      document.getElementById('nextRoundBtn').classList.remove('hidden');
+      
+      // Show leaderboards and social norm based on infoType AFTER wait time
       // Load leaderboards after round completes (including Round 1)
       if (experimentConfig.infoType !== 'noInfo') {
         await loadLeaderboards();
@@ -1173,11 +1224,6 @@ async function showRoundResults() {
           switchTab('leaderboard');
         }, 500);
       }
-      
-      // Show results section and next round button
-      const roundResults = document.getElementById('roundResults');
-      roundResults.classList.remove('hidden');
-      document.getElementById('nextRoundBtn').classList.remove('hidden');
       
       // Scroll to top of results smoothly
       roundResults.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -1203,7 +1249,7 @@ async function showRoundResults() {
       // Scroll to top of results smoothly
       roundResults.scrollIntoView({ behavior: 'smooth', block: 'start' });
       
-      // Show leaderboards and social norm based on infoType
+      // Show leaderboards and social norm based on infoType AFTER wait time
       // Load leaderboards after round completes (including Round 1)
       if (experimentConfig.infoType !== 'noInfo') {
         await loadLeaderboards();
@@ -1902,8 +1948,9 @@ async function loadIndividualLeaderboardAcrossTeams() {
   const playerData = new Map();
   
   // Initialize with current user
-  const currentUserDoc = await db.collection('participants').doc(participantId).get();
-  const currentUserCumulative = currentUserDoc.exists ? (currentUserDoc.data().totalContribution || 0) : 0;
+  // For cumulative, calculate from all contributions (not from participants.totalContribution which might be stale)
+  const currentUserContributions = allContributionsSnapshot.docs.filter(d => d.data().participantId === participantId);
+  const currentUserCumulative = currentUserContributions.reduce((sum, doc) => sum + doc.data().contribution, 0);
   const currentUserRound = currentRoundContributionsSnapshot.docs.find(d => d.data().participantId === participantId);
   const currentUserRoundContribution = currentUserRound ? currentUserRound.data().contribution : 0;
   
@@ -1972,6 +2019,12 @@ async function loadIndividualLeaderboardAcrossTeams() {
     const startIndex = Math.max(10, userIndex - 2);
     const endIndex = Math.min(playerTotals.length - 1, userIndex + 2);
     for (let i = startIndex; i <= endIndex; i++) {
+      rowsToDisplay.add(i);
+    }
+  } else if (userIndex !== null && userIndex < 10) {
+    // If user is in top 10, also show 2 below if available
+    const endIndex = Math.min(playerTotals.length - 1, userIndex + 2);
+    for (let i = userIndex + 1; i <= endIndex; i++) {
       rowsToDisplay.add(i);
     }
   }
@@ -2132,4 +2185,5 @@ function setupLeaderboardListeners() {
     });
   }
 }
+
 
