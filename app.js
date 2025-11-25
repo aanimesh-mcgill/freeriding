@@ -1450,15 +1450,37 @@ async function loadLeaderboards() {
   const leaderboardContent = document.getElementById('leaderboardContent');
   if (!leaderboardContent) return;
   
-  // Load leaderboards - they should be available after round completes
-  // Check if we have contribution data for current round to determine if round is complete
+  // Check if current round has been completed (user has submitted contribution)
+  const userContribution = await db.collection('contributions')
+    .where('participantId', '==', participantId)
+    .where('round', '==', currentRound)
+    .limit(1)
+    .get();
+  
+  // If user hasn't submitted for current round yet, show waiting message
+  if (userContribution.empty) {
+    if (experimentConfig.infoType === 'noInfo') {
+      leaderboardContent.innerHTML = '';
+      return;
+    } else if (experimentConfig.infoType === 'socialNorm') {
+      leaderboardContent.innerHTML = '<p style="text-align: center; color: #666; padding: 20px;">Information will be available after the round is complete.</p>';
+      return;
+    } else {
+      leaderboardContent.innerHTML = '<p style="text-align: center; color: #666; padding: 20px;">Leaderboard will be available after the round is complete.</p>';
+      return;
+    }
+  }
+  
+  // Check if round has completed (all team members have contributed)
   const contributionsSnapshot = await db.collection('contributions')
     .where('groupId', '==', groupId)
     .where('round', '==', currentRound)
     .get();
   
-  // If no contributions yet for this round (round not started), show waiting message
-  if (contributionsSnapshot.empty) {
+  // If round hasn't completed yet (not all contributions in), show waiting message
+  // Note: For simulated members, we create contributions immediately, so this check ensures round is processed
+  const roundData = await db.collection('rounds').doc(`${groupId}_${currentRound}`).get();
+  if (!roundData.exists || !roundData.data().completed) {
     if (experimentConfig.infoType === 'noInfo') {
       leaderboardContent.innerHTML = '';
       return;
