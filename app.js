@@ -1611,6 +1611,29 @@ async function loadTeamLeaderboardForTab() {
   // Sort by total
   allTeams.sort((a, b) => b.total - a.total);
   
+  // Assign unique team numbers to avoid duplicates
+  let teamCounter = 1;
+  const usedTeamNumbers = new Set();
+  const teamNumberMap = new Map();
+  
+  // First, assign number to focal team (but it will be named "Your Team")
+  teamNumberMap.set(groupId, 0); // 0 means "Your Team"
+  
+  // Assign numbers to all other teams
+  allTeams.forEach(team => {
+    if (team.isFocal) return; // Skip focal team
+    
+    if (!teamNumberMap.has(team.id)) {
+      // Find next available team number
+      while (usedTeamNumbers.has(teamCounter)) {
+        teamCounter++;
+      }
+      teamNumberMap.set(team.id, teamCounter);
+      usedTeamNumbers.add(teamCounter);
+      teamCounter++;
+    }
+  });
+  
   // Display top 10
   const tbody = document.getElementById('teamLeaderboardTabBody');
   tbody.innerHTML = '';
@@ -1621,12 +1644,9 @@ async function loadTeamLeaderboardForTab() {
     let teamName;
     if (team.isFocal) {
       teamName = 'Your Team';
-    } else if (team.isSimulated) {
-      const teamNum = parseInt(team.id.substring(9)) || 0;
-      teamName = `Team ${teamNum + 1}`;
     } else {
-      const teamNum = Math.abs(team.id.split('').reduce((a, b) => { a = ((a << 5) - a) + b.charCodeAt(0); return a & a; }, 0)) % totalTeams;
-      teamName = `Team ${teamNum + 1}`;
+      const teamNum = teamNumberMap.get(team.id) || 1;
+      teamName = `Team ${teamNum}`;
     }
     row.insertCell(1).textContent = teamName;
     row.insertCell(2).textContent = team.total;
