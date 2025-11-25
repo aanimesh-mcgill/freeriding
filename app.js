@@ -2043,15 +2043,51 @@ async function loadIndividualLeaderboardAcrossTeams() {
   }
   
   // Get contributions ONLY from this user's experiment teams
-  const allContributionsSnapshot = await db.collection('contributions')
-    .where('groupId', 'in', userTeamIds.length > 10 ? userTeamIds.slice(0, 10) : userTeamIds)
-    .get();
+  // Firestore 'in' operator has a limit of 10 items, so we need to batch queries if needed
+  let allContributionsSnapshot = { docs: [] };
+  let currentRoundContributionsSnapshot = { docs: [] };
   
-  // Get current round contributions from user's teams
-  const currentRoundContributionsSnapshot = await db.collection('contributions')
-    .where('groupId', 'in', userTeamIds.length > 10 ? userTeamIds.slice(0, 10) : userTeamIds)
-    .where('round', '==', currentRound)
-    .get();
+  if (userTeamIds.length === 0) {
+    // Fallback: use empty snapshots
+    allContributionsSnapshot = { docs: [] };
+    currentRoundContributionsSnapshot = { docs: [] };
+  } else if (userTeamIds.length <= 10) {
+    // Single query if 10 or fewer teams
+    allContributionsSnapshot = await db.collection('contributions')
+      .where('groupId', 'in', userTeamIds)
+      .get();
+    
+    currentRoundContributionsSnapshot = await db.collection('contributions')
+      .where('groupId', 'in', userTeamIds)
+      .where('round', '==', currentRound)
+      .get();
+  } else {
+    // Batch queries if more than 10 teams (shouldn't happen, but handle it)
+    const batches = [];
+    for (let i = 0; i < userTeamIds.length; i += 10) {
+      const batch = userTeamIds.slice(i, i + 10);
+      batches.push(batch);
+    }
+    
+    const allDocs = [];
+    const currentRoundDocs = [];
+    
+    for (const batch of batches) {
+      const batchSnapshot = await db.collection('contributions')
+        .where('groupId', 'in', batch)
+        .get();
+      allDocs.push(...batchSnapshot.docs);
+      
+      const roundBatchSnapshot = await db.collection('contributions')
+        .where('groupId', 'in', batch)
+        .where('round', '==', currentRound)
+        .get();
+      currentRoundDocs.push(...roundBatchSnapshot.docs);
+    }
+    
+    allContributionsSnapshot = { docs: allDocs };
+    currentRoundContributionsSnapshot = { docs: currentRoundDocs };
+  }
   
   // Create a map to track team numbers for each groupId
   const teamNumberMap = new Map();
