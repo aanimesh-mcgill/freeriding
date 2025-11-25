@@ -1801,8 +1801,9 @@ async function loadTeamLeaderboardForTab() {
   });
   
   // Get other teams' contributions in parallel
+  // Only get teams that belong to this participant's experiment session
   const otherTeamQueries = groupsSnapshot.docs
-    .filter(doc => doc.id !== groupId)
+    .filter(doc => doc.id !== groupId && doc.data().participantId === participantId)
     .map(async (groupDoc) => {
       const gid = groupDoc.id;
       const [contributionsSnapshot, simDoc] = await Promise.all([
@@ -1817,9 +1818,12 @@ async function loadTeamLeaderboardForTab() {
       
       // Calculate cumulative from all saved contributions up to currentRound
       // Only count contributions from rounds <= currentRound to avoid double-counting
+      // Also ensure we only count contributions from this participant's experiment session
       contributionsSnapshot.forEach(doc => {
-        const contrib = doc.data().contribution;
-        const contribRound = doc.data().round;
+        const data = doc.data();
+        const contrib = data.contribution;
+        const contribRound = data.round;
+        // Only count if it's from this participant's experiment session and round <= currentRound
         if (contribRound <= currentRound) {
           total += contrib;
           if (contribRound === currentRound) {
@@ -1828,8 +1832,11 @@ async function loadTeamLeaderboardForTab() {
         }
       });
       
-      // If no contributions for current round, get simulated contributions and add realistic variation
+      // For other teams (simulated teams), we should use simulated contributions
+      // If we have contributions in DB, use those. Otherwise, use simulated contributions.
+      // But if we have contributions, we should recalculate cumulative properly
       if (roundTotal === 0 && currentRound <= totalRounds) {
+        // No contributions found for current round, use simulated contributions
         if (simDoc.exists) {
           const simContributions = simDoc.data().contributions || [];
           // Calculate team total from simulated contributions with some noise
@@ -1839,21 +1846,48 @@ async function loadTeamLeaderboardForTab() {
             const contribWithNoise = Math.max(0, Math.min(endowment, sim.contribution + noise));
             roundTotal += contribWithNoise;
           });
-          // Add current round to cumulative (only if not already counted)
-          total += roundTotal;
+          // Recalculate cumulative: sum of all previous rounds + current round
+          // First, get cumulative from previous rounds (excluding current round)
+          let previousCumulative = 0;
+          contributionsSnapshot.forEach(doc => {
+            const data = doc.data();
+            const contribRound = data.round;
+            if (contribRound < currentRound) {
+              previousCumulative += data.contribution;
+            }
+          });
+          // Add current round simulated contributions
+          total = previousCumulative + roundTotal;
         } else {
           // If no simulated contributions exist, generate realistic values
           // Each team has 6 members, average contribution around 10-12 tokens per member
           const baseTeamTotal = Math.round((10 + Math.random() * 4) * 6); // 60-84 tokens per team
           const noise = Math.round((Math.random() - 0.5) * 20); // ±10 tokens variation
           roundTotal = Math.max(30, Math.min(120, baseTeamTotal + noise));
-          // Only add to total if this is the first round or if we haven't counted it yet
-          if (currentRound === 1) {
-            total = roundTotal; // For round 1, cumulative = this round
-          } else {
-            total += roundTotal; // For later rounds, add to existing cumulative
-          }
+          // Recalculate cumulative properly
+          let previousCumulative = 0;
+          contributionsSnapshot.forEach(doc => {
+            const data = doc.data();
+            const contribRound = data.round;
+            if (contribRound < currentRound) {
+              previousCumulative += data.contribution;
+            }
+          });
+          total = previousCumulative + roundTotal;
         }
+      } else {
+        // We have contributions for current round in DB, so cumulative should already be correct
+        // But let's verify: total should be sum of all rounds <= currentRound
+        // Recalculate to be sure
+        let recalculatedTotal = 0;
+        contributionsSnapshot.forEach(doc => {
+          const data = doc.data();
+          const contribRound = data.round;
+          if (contribRound <= currentRound) {
+            recalculatedTotal += data.contribution;
+          }
+        });
+        total = recalculatedTotal;
       }
       
       return { gid, total, roundTotal };
