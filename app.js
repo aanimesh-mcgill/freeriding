@@ -702,6 +702,7 @@ async function loadRound() {
   document.getElementById('submittedMessage').classList.add('hidden');
   document.getElementById('roundResults').classList.add('hidden');
   document.getElementById('nextRoundBtn').classList.add('hidden');
+  document.getElementById('waitingForResults').classList.add('hidden');
   
   // Show decision section and switch to decision tab
   const decisionSection = document.getElementById('decision-section');
@@ -712,6 +713,13 @@ async function loadRound() {
   
   submitted = false;
   contribution = 0;
+  
+  // Reset slider and buttons - do not preselect any button
+  document.getElementById('contributionSlider').value = 0;
+  document.querySelectorAll('.btn-contribute').forEach(btn => {
+    btn.classList.remove('active');
+  });
+  updateContribution();
   
   // Check if already submitted for this round
   const existingContribution = await db.collection('contributions')
@@ -812,6 +820,18 @@ async function submitContribution() {
   if (isNaN(contribution) || contribution < 0 || contribution > endowment) {
     alert(`Please choose a contribution between 0 and ${endowment}.`);
     return;
+  }
+  
+  // Show confirmation dialog
+  const confirmed = confirm(
+    `Confirm your contribution:\n\n` +
+    `You will contribute: ${contribution} tokens\n` +
+    `You will keep: ${endowment - contribution} tokens\n\n` +
+    `Click OK to confirm, or Cancel to change your contribution.`
+  );
+  
+  if (!confirmed) {
+    return; // User cancelled, allow them to change contribution
   }
   
   showLoading(true);
@@ -1073,37 +1093,94 @@ async function showRoundResults() {
     decisionSection.style.display = 'none';
   }
   
-  // Wait for configured delay before showing results
-  setTimeout(async () => {
-    // Display results
-    document.getElementById('resultYourContribution').textContent = contribution;
-    document.getElementById('resultGroupTotal').textContent = groupTotal;
-    document.getElementById('resultYourShare').textContent = payoffData.groupShare.toFixed(2);
-    document.getElementById('resultPayoff').textContent = payoffData.payoff.toFixed(2);
-    document.getElementById('resultCumulative').textContent = cumulativePayoff.toFixed(2);
+  // Show waiting message with progress bar
+  const waitingForResults = document.getElementById('waitingForResults');
+  const progressBar = document.getElementById('progressBar');
+  if (waitingForResults && progressBar) {
+    waitingForResults.classList.remove('hidden');
+    progressBar.style.width = '0%';
     
-    // Show results section
-    const roundResults = document.getElementById('roundResults');
-    roundResults.classList.remove('hidden');
-    document.getElementById('nextRoundBtn').classList.remove('hidden');
+    // Animate progress bar
+    let progress = 0;
+    const progressInterval = setInterval(() => {
+      progress += 2;
+      if (progress > 95) {
+        progress = 95; // Don't complete until results are ready
+      }
+      progressBar.style.width = progress + '%';
+    }, (resultsDelay * 1000) / 50); // Update 50 times over the delay period
     
-    // Scroll to top of results smoothly
-    roundResults.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    
-    // Show leaderboards and social norm based on infoType
-    // Load and show leaderboards based on infoType
-    await loadLeaderboards();
-    
-    // Auto-switch to leaderboard tab if info is shown
-    if (experimentConfig.infoType !== 'noInfo') {
-      setTimeout(() => {
-        switchTab('leaderboard');
-      }, 500);
-    }
-    
-    // Update contribution comparison if shown (for backward compatibility)
-    // This is now handled by social norm display
-  }, resultsDelay * 1000);
+    // Wait for configured delay before showing results
+    setTimeout(async () => {
+      // Complete progress bar
+      clearInterval(progressInterval);
+      if (progressBar) {
+        progressBar.style.width = '100%';
+      }
+      
+      // Hide waiting message
+      if (waitingForResults) {
+        waitingForResults.classList.add('hidden');
+      }
+      
+      // Display results
+      document.getElementById('resultYourContribution').textContent = contribution;
+      document.getElementById('resultGroupTotal').textContent = groupTotal;
+      document.getElementById('resultYourShare').textContent = payoffData.groupShare.toFixed(2);
+      document.getElementById('resultPayoff').textContent = payoffData.payoff.toFixed(2);
+      document.getElementById('resultCumulative').textContent = cumulativePayoff.toFixed(2);
+      
+      // Show leaderboards and social norm based on infoType
+      // Load and show leaderboards based on infoType
+      await loadLeaderboards();
+      
+      // Show results section and next round button
+      const roundResults = document.getElementById('roundResults');
+      roundResults.classList.remove('hidden');
+      document.getElementById('nextRoundBtn').classList.remove('hidden');
+      
+      // Scroll to top of results smoothly
+      roundResults.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      
+      // Auto-switch to leaderboard tab if info is shown
+      if (experimentConfig.infoType !== 'noInfo') {
+        setTimeout(() => {
+          switchTab('leaderboard');
+        }, 500);
+      }
+      
+      // Update contribution comparison if shown (for backward compatibility)
+      // This is now handled by social norm display
+    }, resultsDelay * 1000);
+  } else {
+    // Fallback if elements don't exist
+    setTimeout(async () => {
+      // Display results
+      document.getElementById('resultYourContribution').textContent = contribution;
+      document.getElementById('resultGroupTotal').textContent = groupTotal;
+      document.getElementById('resultYourShare').textContent = payoffData.groupShare.toFixed(2);
+      document.getElementById('resultPayoff').textContent = payoffData.payoff.toFixed(2);
+      document.getElementById('resultCumulative').textContent = cumulativePayoff.toFixed(2);
+      
+      // Show results section
+      const roundResults = document.getElementById('roundResults');
+      roundResults.classList.remove('hidden');
+      document.getElementById('nextRoundBtn').classList.remove('hidden');
+      
+      // Scroll to top of results smoothly
+      roundResults.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      
+      // Show leaderboards and social norm based on infoType
+      await loadLeaderboards();
+      
+      // Auto-switch to leaderboard tab if info is shown
+      if (experimentConfig.infoType !== 'noInfo') {
+        setTimeout(() => {
+          switchTab('leaderboard');
+        }, 500);
+      }
+    }, resultsDelay * 1000);
+  }
 }
 
 async function updateContributionComparison() {
