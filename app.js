@@ -338,8 +338,28 @@ function generateWithinSubjectCombinations() {
 }
 
 // Randomly assign participant to one of 14 between-subject cells
+// If URL parameter 'cell' is provided, use that cell for testing
 function assignBetweenSubjectCell() {
-  const cellIndex = Math.floor(Math.random() * BETWEEN_SUBJECT_CELLS.length);
+  // Check for URL parameter for testing
+  const urlParams = new URLSearchParams(window.location.search);
+  const cellParam = urlParams.get('cell');
+  
+  let cellIndex;
+  if (cellParam) {
+    // Use specified cell (1-14) for testing
+    const requestedCell = parseInt(cellParam);
+    if (requestedCell >= 1 && requestedCell <= BETWEEN_SUBJECT_CELLS.length) {
+      cellIndex = requestedCell - 1; // Convert to 0-based index
+      console.log(`[TESTING] Using cell ${requestedCell} from URL parameter`);
+    } else {
+      console.warn(`[TESTING] Invalid cell parameter: ${cellParam}. Using random assignment.`);
+      cellIndex = Math.floor(Math.random() * BETWEEN_SUBJECT_CELLS.length);
+    }
+  } else {
+    // Random assignment
+    cellIndex = Math.floor(Math.random() * BETWEEN_SUBJECT_CELLS.length);
+  }
+  
   const cell = BETWEEN_SUBJECT_CELLS[cellIndex];
   return {
     cellNumber: cellIndex + 1,
@@ -431,12 +451,17 @@ async function startExperiment() {
       });
       
       // Track cell assignment for balance
+      const urlParams = new URLSearchParams(window.location.search);
+      const cellParam = urlParams.get('cell');
+      
       await db.collection('cellAssignments').add({
         participantId,
         uniqueParticipantId,
         betweenSubjectCell: cellAssignment.cellNumber,
         infoType: cellAssignment.infoType,
         focalUserContributionLevel: cellAssignment.focalUserContributionLevel,
+        assignedFromURL: cellParam !== null, // Flag if assigned from URL parameter
+        urlCellParameter: cellParam || null,
         timestamp: firebase.firestore.FieldValue.serverTimestamp()
       });
     }
