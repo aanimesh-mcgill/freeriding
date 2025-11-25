@@ -721,6 +721,16 @@ async function loadRound() {
   }
   switchTab('decision');
   
+  // Clear leaderboard content when starting a new round (before submission)
+  const leaderboardContent = document.getElementById('leaderboardContent');
+  if (leaderboardContent && experimentConfig.infoType !== 'noInfo') {
+    if (experimentConfig.infoType === 'socialNorm') {
+      leaderboardContent.innerHTML = '<p style="text-align: center; color: #666; padding: 20px;">Information will be available after the round is complete.</p>';
+    } else {
+      leaderboardContent.innerHTML = '<p style="text-align: center; color: #666; padding: 20px;">Leaderboard will be available after the round is complete.</p>';
+    }
+  }
+  
   submitted = false;
   contribution = 0;
   
