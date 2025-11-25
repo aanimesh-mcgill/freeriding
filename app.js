@@ -1661,17 +1661,33 @@ async function loadTeamLeaderboardForTab() {
   // Combine real and simulated teams
   const allTeams = [];
   Object.entries(groupTotals).forEach(([gid, total]) => {
-    allTeams.push({ id: gid, total: total, isSimulated: false });
+    allTeams.push({ 
+      id: gid, 
+      cumulative: total, 
+      thisRound: groupRoundTotals[gid] || 0,
+      isSimulated: false 
+    });
   });
   simulatedTeams.forEach(team => {
-    allTeams.push({ id: team.id, total: team.total, isSimulated: true });
+    allTeams.push({ 
+      id: team.id, 
+      cumulative: team.total, 
+      thisRound: 0, // Simulated teams don't have round-specific data
+      isSimulated: true 
+    });
   });
   
   // Add focal team
-  allTeams.push({ id: groupId, total: focalTeamTotal, isSimulated: false, isFocal: true });
+  allTeams.push({ 
+    id: groupId, 
+    cumulative: focalTeamTotal, 
+    thisRound: focalTeamRoundTotal,
+    isSimulated: false, 
+    isFocal: true 
+  });
   
-  // Sort by total
-  allTeams.sort((a, b) => b.total - a.total);
+  // Sort by cumulative (for ranking)
+  allTeams.sort((a, b) => b.cumulative - a.cumulative);
   
   // Assign unique team numbers: focal team is always Team 5, others are 1-4, 6-10
   const availableNumbers = [1, 2, 3, 4, 6, 7, 8, 9, 10]; // Skip 5 for focal team
@@ -1706,7 +1722,8 @@ async function loadTeamLeaderboardForTab() {
       teamName = `Team ${teamNum}`;
     }
     row.insertCell(1).textContent = teamName;
-    row.insertCell(2).textContent = team.total;
+    row.insertCell(2).textContent = team.cumulative;
+    row.insertCell(3).textContent = team.thisRound;
     
     if (team.isFocal) {
       row.style.backgroundColor = '#e3f2fd';
