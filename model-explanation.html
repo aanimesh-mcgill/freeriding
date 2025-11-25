@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Empirical Model Explanation - Decision-Making Experiment</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .model-container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    
+    .model-header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 30px;
+      border-radius: 12px;
+      margin-bottom: 30px;
+    }
+    
+    .model-header h1 {
+      margin: 0 0 10px 0;
+      font-size: 32px;
+    }
+    
+    .model-section {
+      background: white;
+      border-radius: 12px;
+      padding: 25px;
+      margin-bottom: 25px;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    }
+    
+    .model-section h2 {
+      color: #667eea;
+      margin-top: 0;
+      margin-bottom: 20px;
+      font-size: 24px;
+      border-bottom: 2px solid #667eea;
+      padding-bottom: 10px;
+    }
+    
+    .model-section h3 {
+      color: #764ba2;
+      margin-top: 25px;
+      margin-bottom: 15px;
+      font-size: 20px;
+    }
+    
+    .equation {
+      background: #f8f9fa;
+      padding: 20px;
+      border-radius: 8px;
+      margin: 20px 0;
+      border-left: 4px solid #667eea;
+      font-family: 'Courier New', monospace;
+      font-size: 16px;
+      line-height: 1.8;
+      overflow-x: auto;
+    }
+    
+    .variable-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 20px 0;
+    }
+    
+    .variable-table th {
+      background: #667eea;
+      color: white;
+      padding: 12px;
+      text-align: left;
+      font-weight: bold;
+    }
+    
+    .variable-table td {
+      padding: 10px 12px;
+      border-bottom: 1px solid #e0e0e0;
+    }
+    
+    .variable-table tr:hover {
+      background: #f5f5f5;
+    }
+    
+    .variable-table .var-name {
+      font-family: 'Courier New', monospace;
+      font-weight: bold;
+      color: #667eea;
+    }
+    
+    .info-box {
+      background: #e8f4f8;
+      padding: 15px;
+      border-radius: 8px;
+      margin: 15px 0;
+      border-left: 4px solid #667eea;
+    }
+    
+    .info-box strong {
+      color: #667eea;
+    }
+    
+    ul, ol {
+      line-height: 1.8;
+    }
+    
+    code {
+      background: #f4f4f4;
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-family: 'Courier New', monospace;
+      color: #e74c3c;
+    }
+  </style>
+</head>
+<body>
+  <div class="model-container">
+    <div class="model-header">
+      <h1>Empirical Model Explanation</h1>
+      <p>Statistical Analysis of Treatment Effects on Contribution Decisions</p>
+    </div>
+    
+    <div class="model-section">
+      <h2>Model Specification</h2>
+      
+      <p>
+        We employ a multiple linear regression model to examine the impact of treatment conditions on participants' 
+        contribution decisions in the public goods game, while controlling for previous round outcomes and learning effects.
+      </p>
+      
+      <div class="equation">
+        <strong>Contribution<sub>i,t</sub> = β<sub>0</sub> + β<sub>1</sub>Contribution<sub>i,t-1</sub> + β<sub>2</sub>Payoff<sub>i,t-1</sub> + β<sub>3</sub>GroupTotal<sub>t-1</sub> + β<sub>4</sub>Round<sub>t</sub> + Σ<sub>j</sub>γ<sub>j</sub>Treatment<sub>j</sub> + ε<sub>i,t</sub></strong>
+      </div>
+      
+      <div class="info-box">
+        <strong>Where:</strong>
+        <ul>
+          <li><strong>i</strong> = participant index</li>
+          <li><strong>t</strong> = round number</li>
+          <li><strong>ε<sub>i,t</sub></strong> = error term (assumed to be independently and identically distributed)</li>
+        </ul>
+      </div>
+    </div>
+    
+    <div class="model-section">
+      <h2>Dependent Variable</h2>
+      
+      <h3>Contribution<sub>i,t</sub></h3>
+      <p>
+        The dependent variable is the number of tokens (0-20) that participant <em>i</em> contributes to the group project 
+        in round <em>t</em>. This is a continuous variable representing the participant's decision in each round.
+      </p>
+    </div>
+    
+    <div class="model-section">
+      <h2>Control Variables</h2>
+      
+      <p>
+        We include several control variables to account for factors that may influence contribution decisions independently 
+        of the treatment conditions:
+      </p>
+      
+      <table class="variable-table">
+        <thead>
+          <tr>
+            <th>Variable</th>
+            <th>Description</th>
+            <th>Expected Effect</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="var-name">Contribution<sub>i,t-1</sub></td>
+            <td>Participant's own contribution in the previous round (lagged dependent variable)</td>
+            <td>Positive (habit formation, consistency)</td>
+          </tr>
+          <tr>
+            <td class="var-name">Payoff<sub>i,t-1</sub></td>
+            <td>Participant's payoff (earnings) from the previous round</td>
+            <td>Positive (reinforcement learning: higher payoffs may encourage similar behavior)</td>
+          </tr>
+          <tr>
+            <td class="var-name">GroupTotal<sub>t-1</sub></td>
+            <td>Total group contribution in the previous round</td>
+            <td>Positive (conditional cooperation: higher group contributions may encourage higher individual contributions)</td>
+          </tr>
+          <tr>
+            <td class="var-name">Round<sub>t</sub></td>
+            <td>Round number (1, 2, 3, ..., 10)</td>
+            <td>Negative (learning effect: contributions may decline over time as participants learn the game structure)</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    
+    <div class="model-section">
+      <h2>Treatment Variables</h2>
+      
+      <p>
+        Treatment variables are coded as dummy variables (0/1) to capture the effect of different experimental conditions 
+        on contribution decisions. The reference categories are indicated below.
+      </p>
+      
+      <h3>1. Information Type (7 levels)</h3>
+      <p>
+        This factor captures what information about contributions is displayed to participants. The reference category is 
+        <code>noInfo</code> (no information displayed).
+      </p>
+      <table class="variable-table">
+        <thead>
+          <tr>
+            <th>Variable</th>
+            <th>Description</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="var-name">Info: teamLB</td>
+            <td>1 if team leaderboard is shown, 0 otherwise</td>
+          </tr>
+          <tr>
+            <td class="var-name">Info: indLBWithin</td>
+            <td>1 if individual leaderboard (within team) is shown, 0 otherwise</td>
+          </tr>
+          <tr>
+            <td class="var-name">Info: bothLBWithin</td>
+            <td>1 if both team and individual leaderboard (within team) are shown, 0 otherwise</td>
+          </tr>
+          <tr>
+            <td class="var-name">Info: bothLBAcross</td>
+            <td>1 if both team and individual leaderboard (across teams) are shown, 0 otherwise</td>
+          </tr>
+          <tr>
+            <td class="var-name">Info: socialNorm</td>
+            <td>1 if social norm (team average) is shown, 0 otherwise</td>
+          </tr>
+          <tr>
+            <td class="var-name">Info: indLBAcross</td>
+            <td>1 if individual leaderboard (across teams) is shown, 0 otherwise</td>
+          </tr>
+        </tbody>
+      </table>
+      
+      <h3>2. Focal User Contribution Level (2 levels)</h3>
+      <p>
+        This factor controls whether the focal participant is positioned in the top 3 or bottom 3 of their team's 
+        individual leaderboard for 85% of rounds.
+      </p>
+      <table class="variable-table">
+        <thead>
+          <tr>
+            <th>Variable</th>
+            <th>Description</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="var-name">Focal User: Higher</td>
+            <td>1 if focal user is in top 3 for 85% of rounds, 0 if in bottom 3 for 85% of rounds</td>
+          </tr>
+        </tbody>
+      </table>
+      
+      <h3>3. Team Contribution Level (2 levels)</h3>
+      <p>
+        This within-subject factor controls whether the participant's team is positioned in the top 25% or bottom 25% 
+        of all teams in the team leaderboard.
+      </p>
+      <table class="variable-table">
+        <thead>
+          <tr>
+            <th>Variable</th>
+            <th>Description</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="var-name">Team Contribution: High</td>
+            <td>1 if team is in top 25%, 0 if in bottom 25%</td>
+          </tr>
+        </tbody>
+      </table>
+      
+      <h3>4. Individual Leaderboard Stability (2 levels)</h3>
+      <p>
+        This within-subject factor controls the stability of individual leaderboard rankings across rounds.
+      </p>
+      <table class="variable-table">
+        <thead>
+          <tr>
+            <th>Variable</th>
+            <th>Description</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="var-name">Ind LB Stability: High</td>
+            <td>1 if 50% of members maintain their ranks across rounds, 0 if 25% maintain ranks</td>
+          </tr>
+        </tbody>
+      </table>
+      
+      <h3>5. Team Leaderboard Stability (2 levels)</h3>
+      <p>
+        This within-subject factor controls the stability of team leaderboard rankings across rounds.
+      </p>
+      <table class="variable-table">
+        <thead>
+          <tr>
+            <th>Variable</th>
+            <th>Description</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="var-name">Team LB Stability: High</td>
+            <td>1 if 50% of teams maintain their ranks across rounds, 0 if 25% maintain ranks</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    
+    <div class="model-section">
+      <h2>Estimation Method</h2>
+      
+      <p>
+        We estimate the model using <strong>Ordinary Least Squares (OLS) regression</strong>. The model is specified as:
+      </p>
+      
+      <div class="equation">
+        <strong>Y = Xβ + ε</strong>
+      </div>
+      
+      <p>Where:</p>
+      <ul>
+        <li><strong>Y</strong> is the vector of contribution decisions</li>
+        <li><strong>X</strong> is the matrix of independent variables (controls and treatments)</li>
+        <li><strong>β</strong> is the vector of coefficients to be estimated</li>
+        <li><strong>ε</strong> is the vector of error terms</li>
+      </ul>
+      
+      <p>
+        The OLS estimator minimizes the sum of squared residuals:
+      </p>
+      
+      <div class="equation">
+        <strong>β̂ = (X'X)<sup>-1</sup>X'Y</strong>
+      </div>
+      
+      <h3>Standard Errors and Inference</h3>
+      <p>
+        Standard errors are calculated using the standard OLS formula:
+      </p>
+      
+      <div class="equation">
+        <strong>SE(β̂) = √(MSE × diag((X'X)<sup>-1</sup>))</strong>
+      </div>
+      
+      <p>Where MSE (Mean Squared Error) is:</p>
+      
+      <div class="equation">
+        <strong>MSE = SSE / (n - k)</strong>
+      </div>
+      
+      <p>
+        with <strong>SSE</strong> = sum of squared errors, <strong>n</strong> = number of observations, 
+        and <strong>k</strong> = number of parameters.
+      </p>
+      
+      <p>
+        t-statistics are calculated as <strong>t = β̂ / SE(β̂)</strong>, and p-values are computed using 
+        a two-tailed t-test with <strong>n - k</strong> degrees of freedom.
+      </p>
+    </div>
+    
+    <div class="model-section">
+      <h2>Model Fit</h2>
+      
+      <h3>R-squared (R²)</h3>
+      <p>
+        R-squared measures the proportion of variance in the dependent variable explained by the model:
+      </p>
+      
+      <div class="equation">
+        <strong>R² = 1 - (SS<sub>res</sub> / SS<sub>tot</sub>)</strong>
+      </div>
+      
+      <p>Where:</p>
+      <ul>
+        <li><strong>SS<sub>res</sub></strong> = sum of squared residuals</li>
+        <li><strong>SS<sub>tot</sub></strong> = total sum of squares</li>
+      </ul>
+      
+      <h3>Adjusted R-squared</h3>
+      <p>
+        Adjusted R-squared accounts for the number of predictors in the model:
+      </p>
+      
+      <div class="equation">
+        <strong>R²<sub>adj</sub> = 1 - ((1 - R²) × (n - 1) / (n - k))</strong>
+      </div>
+      
+      <p>
+        This provides a more conservative measure of model fit, especially when comparing models with different 
+        numbers of predictors.
+      </p>
+    </div>
+    
+    <div class="model-section">
+      <h2>Interpretation of Results</h2>
+      
+      <h3>Coefficients</h3>
+      <p>
+        Each coefficient (β) represents the expected change in contribution (in tokens) associated with a one-unit 
+        change in the corresponding independent variable, holding all other variables constant.
+      </p>
+      
+      <div class="info-box">
+        <strong>Example:</strong> If the coefficient for "Info: teamLB" is 2.5, this means that participants who see 
+        the team leaderboard contribute, on average, 2.5 tokens more than those in the reference category (noInfo), 
+        controlling for all other factors.
+      </div>
+      
+      <h3>Significance Levels</h3>
+      <p>
+        We use conventional significance levels:
+      </p>
+      <ul>
+        <li><strong>***</strong> p &lt; 0.01 (highly significant)</li>
+        <li><strong>**</strong> p &lt; 0.05 (significant)</li>
+        <li><strong>*</strong> p &lt; 0.10 (marginally significant)</li>
+      </ul>
+      
+      <h3>Expected Treatment Effects</h3>
+      <p>
+        Based on previous research on public goods games and social influence:
+      </p>
+      <ul>
+        <li><strong>Leaderboards:</strong> May increase contributions through social comparison and competitive motivation</li>
+        <li><strong>Social Norms:</strong> May increase contributions through conformity to group average</li>
+        <li><strong>High Team Rank:</strong> May increase contributions through pride and status maintenance</li>
+        <li><strong>Low Team Rank:</strong> May decrease contributions through discouragement or increase through catch-up motivation</li>
+        <li><strong>Stability:</strong> May affect contribution patterns differently depending on whether rankings are stable or dynamic</li>
+      </ul>
+    </div>
+    
+    <div class="model-section">
+      <h2>Data Structure</h2>
+      
+      <p>
+        The analysis uses panel data structure where:
+      </p>
+      <ul>
+        <li>Each observation represents one participant's decision in one round</li>
+        <li>Observations are nested within participants (multiple rounds per participant)</li>
+        <li>The first round for each participant is excluded from analysis (no previous round data available)</li>
+        <li>Only real participants are included (simulated participants are excluded)</li>
+      </ul>
+      
+      <div class="info-box">
+        <strong>Note:</strong> The current implementation uses pooled OLS regression. For future analyses, 
+        panel data methods (e.g., fixed effects, random effects) could be employed to account for unobserved 
+        participant-level heterogeneity.
+      </div>
+    </div>
+    
+    <div class="model-section">
+      <h2>Limitations and Future Extensions</h2>
+      
+      <h3>Current Limitations</h3>
+      <ul>
+        <li>Pooled OLS assumes independence of observations, which may not hold for repeated observations from the same participant</li>
+        <li>No control for unobserved participant-level characteristics</li>
+        <li>Linear specification may not capture non-linear relationships</li>
+      </ul>
+      
+      <h3>Potential Extensions</h3>
+      <ul>
+        <li><strong>Fixed Effects:</strong> Control for time-invariant participant characteristics</li>
+        <li><strong>Random Effects:</strong> Account for participant-level heterogeneity</li>
+        <li><strong>Interaction Terms:</strong> Test for differential effects of treatments across different conditions</li>
+        <li><strong>Non-linear Models:</strong> Account for bounded nature of contributions (0-20 tokens)</li>
+        <li><strong>Dynamic Panel Models:</strong> Better account for lagged dependent variable</li>
+      </ul>
+    </div>
+    
+    <div class="model-section">
+      <h2>References</h2>
+      
+      <p>
+        This model is based on standard econometric methods for analyzing experimental data in public goods games. 
+        Key references include:
+      </p>
+      <ul>
+        <li>Ledyard, J. O. (1995). Public goods: A survey of experimental research. In J. H. Kagel & A. E. Roth (Eds.), 
+            <em>The Handbook of Experimental Economics</em> (pp. 111-194). Princeton University Press.</li>
+        <li>Chaudhuri, A. (2011). Sustaining cooperation in laboratory public goods experiments: A selective survey of the literature. 
+            <em>Experimental Economics</em>, 14(1), 47-83.</li>
+        <li>Wooldridge, J. M. (2010). <em>Econometric Analysis of Cross Section and Panel Data</em> (2nd ed.). MIT Press.</li>
+      </ul>
+    </div>
+  </div>
+</body>
+</html>
+

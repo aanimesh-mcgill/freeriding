@@ -1811,12 +1811,16 @@ async function loadTeamLeaderboardForTab() {
       let total = 0;
       let roundTotal = 0;
       
-      // Calculate cumulative from all saved contributions
+      // Calculate cumulative from all saved contributions up to currentRound
+      // Only count contributions from rounds <= currentRound to avoid double-counting
       contributionsSnapshot.forEach(doc => {
         const contrib = doc.data().contribution;
-        total += contrib;
-        if (doc.data().round === currentRound) {
-          roundTotal += contrib;
+        const contribRound = doc.data().round;
+        if (contribRound <= currentRound) {
+          total += contrib;
+          if (contribRound === currentRound) {
+            roundTotal += contrib;
+          }
         }
       });
       
@@ -1831,7 +1835,7 @@ async function loadTeamLeaderboardForTab() {
             const contribWithNoise = Math.max(0, Math.min(endowment, sim.contribution + noise));
             roundTotal += contribWithNoise;
           });
-          // Add current round to cumulative
+          // Add current round to cumulative (only if not already counted)
           total += roundTotal;
         } else {
           // If no simulated contributions exist, generate realistic values
@@ -1839,7 +1843,12 @@ async function loadTeamLeaderboardForTab() {
           const baseTeamTotal = Math.round((10 + Math.random() * 4) * 6); // 60-84 tokens per team
           const noise = Math.round((Math.random() - 0.5) * 20); // ±10 tokens variation
           roundTotal = Math.max(30, Math.min(120, baseTeamTotal + noise));
-          total += roundTotal;
+          // Only add to total if this is the first round or if we haven't counted it yet
+          if (currentRound === 1) {
+            total = roundTotal; // For round 1, cumulative = this round
+          } else {
+            total += roundTotal; // For later rounds, add to existing cumulative
+          }
         }
       }
       

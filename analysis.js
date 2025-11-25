@@ -163,8 +163,11 @@ class SimpleRegression {
   }
 }
 
+let currentRegressionData = null; // Store regression data for download
+
 document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('runAnalysisBtn').addEventListener('click', runStatisticalAnalysis);
+  document.getElementById('downloadDatasetBtn').addEventListener('click', downloadDataset);
 });
 
 async function runStatisticalAnalysis() {
@@ -315,6 +318,9 @@ async function runStatisticalAnalysis() {
     console.log(`Prepared ${regressionData.length} observations for regression`);
     console.log(`Number of variables: ${variableNames.length}`);
     
+    // Store regression data for download
+    currentRegressionData = regressionData;
+    
     // Run regression
     console.log('Running regression...');
     const regression = new SimpleRegression();
@@ -432,5 +438,59 @@ function displayResults(results, variableNames, n) {
   `;
   
   resultsContent.innerHTML = html;
+}
+
+function downloadDataset() {
+  if (!currentRegressionData || currentRegressionData.length === 0) {
+    alert('Please run the analysis first to generate the dataset.');
+    return;
+  }
+  
+  // Build CSV header
+  const headers = [
+    'Participant ID',
+    'Round',
+    'Contribution',
+    'Previous Contribution',
+    'Previous Payoff',
+    'Previous Group Total',
+    'Round Number',
+    'Info Type: teamLB',
+    'Info Type: indLBWithin',
+    'Info Type: bothLBWithin',
+    'Info Type: bothLBAcross',
+    'Info Type: socialNorm',
+    'Info Type: indLBAcross',
+    'Focal User: Higher',
+    'Team Contribution: High',
+    'Ind LB Stability: High',
+    'Team LB Stability: High'
+  ];
+  
+  let csv = headers.join(',') + '\n';
+  
+  // Add data rows
+  currentRegressionData.forEach(row => {
+    const csvRow = [
+      row.participantId,
+      row.round,
+      row.contribution,
+      ...row.features.slice(1) // Skip intercept
+    ];
+    csv += csvRow.join(',') + '\n';
+  });
+  
+  // Download CSV
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `regression_dataset_${new Date().toISOString().split('T')[0]}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  window.URL.revokeObjectURL(url);
+  
+  console.log(`Downloaded dataset with ${currentRegressionData.length} observations`);
 }
 
