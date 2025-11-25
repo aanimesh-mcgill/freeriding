@@ -48,8 +48,17 @@ class SimpleRegression {
     const k = this.X[0].length; // Number of predictors (including intercept)
     
     // Convert to matrix format
-    const XMatrix = mlMatrix.Matrix.from1DArray(n, k, this.X.flat());
-    const yMatrix = mlMatrix.Matrix.from1DArray(n, 1, this.y);
+    // Handle different ways ml-matrix might be exposed
+    const Matrix = (typeof mlMatrix !== 'undefined' && mlMatrix.Matrix) 
+      ? mlMatrix.Matrix 
+      : (typeof Matrix !== 'undefined' ? Matrix : null);
+    
+    if (!Matrix) {
+      throw new Error('ml-matrix library not loaded. Please check the script tag in analysis.html');
+    }
+    
+    const XMatrix = Matrix.from1DArray(n, k, this.X.flat());
+    const yMatrix = Matrix.from1DArray(n, 1, this.y);
     
     // Calculate coefficients: (X'X)^(-1)X'y
     const Xt = XMatrix.transpose();
@@ -59,7 +68,7 @@ class SimpleRegression {
     this.coefficients = XtXInv.mmul(Xty).to1DArray();
     
     // Calculate predictions
-    const yPred = XMatrix.mmul(mlMatrix.Matrix.from1DArray(k, 1, this.coefficients));
+    const yPred = XMatrix.mmul(Matrix.from1DArray(k, 1, this.coefficients));
     const yPredArray = yPred.to1DArray();
     
     // Calculate residuals
@@ -141,13 +150,13 @@ class SimpleRegression {
     // where g indexes clusters, e_g are residuals for cluster g
     
     const Xt = XMatrix.transpose();
-    let clusterSum = mlMatrix.Matrix.zeros(k, k);
+    let clusterSum = Matrix.zeros(k, k);
     
     // Sum over clusters
     for (const [clusterId, indices] of clusters.entries()) {
       // Get X_g and e_g for this cluster
       const clusterSize = indices.length;
-      const Xg = mlMatrix.Matrix.zeros(clusterSize, k);
+      const Xg = Matrix.zeros(clusterSize, k);
       const eg = [];
       
       for (let j = 0; j < clusterSize; j++) {
@@ -162,8 +171,8 @@ class SimpleRegression {
       // This is equivalent to: X_g' * (e_g * e_g') * X_g
       // For efficiency, we compute: (X_g' * e_g) * (e_g' * X_g)
       const Xgt = Xg.transpose();
-      const Xgte = Xgt.mmul(mlMatrix.Matrix.from1DArray(clusterSize, 1, eg));
-      const egXg = mlMatrix.Matrix.from1DArray(1, clusterSize, eg).mmul(Xg);
+      const Xgte = Xgt.mmul(Matrix.from1DArray(clusterSize, 1, eg));
+      const egXg = Matrix.from1DArray(1, clusterSize, eg).mmul(Xg);
       
       // X_g' * e_g * e_g' * X_g = (X_g' * e_g) * (e_g' * X_g)
       const clusterTerm = Xgte.mmul(egXg);
