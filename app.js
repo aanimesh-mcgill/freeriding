@@ -602,6 +602,9 @@ async function generateSimulatedTeamContributions(groupId) {
         // Allow more variation in contributions
         contribution = Math.round(8 + Math.random() * 7); // 8 to 15
       }
+      
+      // Ensure contribution doesn't exceed endowment (0-20)
+      contribution = Math.max(0, Math.min(endowment, contribution));
       baseContributions.push(contribution);
     }
     
