@@ -1131,8 +1131,23 @@ async function showRoundResults() {
       document.getElementById('resultCumulative').textContent = cumulativePayoff.toFixed(2);
       
       // Show leaderboards and social norm based on infoType
-      // Load and show leaderboards based on infoType
-      await loadLeaderboards();
+      // Only load leaderboards if not round 1
+      if (currentRound > 1) {
+        await loadLeaderboards();
+        
+        // Auto-switch to leaderboard tab if info is shown
+        if (experimentConfig.infoType !== 'noInfo') {
+          setTimeout(() => {
+            switchTab('leaderboard');
+          }, 500);
+        }
+      } else {
+        // Round 1 - show message that leaderboard will be available after round 1
+        const leaderboardContent = document.getElementById('leaderboardContent');
+        if (leaderboardContent) {
+          leaderboardContent.innerHTML = '<p style="text-align: center; color: #666; padding: 20px;">Leaderboard will be available after Round 1 is complete.</p>';
+        }
+      }
       
       // Show results section and next round button
       const roundResults = document.getElementById('roundResults');
@@ -1141,13 +1156,6 @@ async function showRoundResults() {
       
       // Scroll to top of results smoothly
       roundResults.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      
-      // Auto-switch to leaderboard tab if info is shown
-      if (experimentConfig.infoType !== 'noInfo') {
-        setTimeout(() => {
-          switchTab('leaderboard');
-        }, 500);
-      }
       
       // Update contribution comparison if shown (for backward compatibility)
       // This is now handled by social norm display
@@ -1171,13 +1179,22 @@ async function showRoundResults() {
       roundResults.scrollIntoView({ behavior: 'smooth', block: 'start' });
       
       // Show leaderboards and social norm based on infoType
-      await loadLeaderboards();
-      
-      // Auto-switch to leaderboard tab if info is shown
-      if (experimentConfig.infoType !== 'noInfo') {
-        setTimeout(() => {
-          switchTab('leaderboard');
-        }, 500);
+      // Only load leaderboards if not round 1
+      if (currentRound > 1) {
+        await loadLeaderboards();
+        
+        // Auto-switch to leaderboard tab if info is shown
+        if (experimentConfig.infoType !== 'noInfo') {
+          setTimeout(() => {
+            switchTab('leaderboard');
+          }, 500);
+        }
+      } else {
+        // Round 1 - show message that leaderboard will be available after round 1
+        const leaderboardContent = document.getElementById('leaderboardContent');
+        if (leaderboardContent) {
+          leaderboardContent.innerHTML = '<p style="text-align: center; color: #666; padding: 20px;">Leaderboard will be available after Round 1 is complete.</p>';
+        }
       }
     }, resultsDelay * 1000);
   }
@@ -1404,6 +1421,12 @@ async function loadLeaderboards() {
   const leaderboardContent = document.getElementById('leaderboardContent');
   if (!leaderboardContent) return;
   
+  // Don't show leaderboards in round 1 (no data yet)
+  if (currentRound === 1) {
+    leaderboardContent.innerHTML = '<p style="text-align: center; color: #666; padding: 20px;">Leaderboard will be available after Round 1 is complete.</p>';
+    return;
+  }
+  
   leaderboardContent.innerHTML = '';
   
   // Load based on infoType
@@ -1620,18 +1643,38 @@ async function loadIndividualLeaderboardWithinTeam() {
   `;
   leaderboardContent.appendChild(section);
   
+  // Initialize member totals - ensure all 6 members are included
+  const memberTotals = {};
+  
+  // Add focal user (You) - get from participants collection
+  const participantDoc = await db.collection('participants').doc(participantId).get();
+  if (participantDoc.exists) {
+    memberTotals[participantId] = participantDoc.data().totalContribution || 0;
+  } else {
+    memberTotals[participantId] = 0;
+  }
+  
+  // Add all 5 simulated members (Team Member 1-5)
+  for (let i = 1; i <= 5; i++) {
+    const simId = `SIM_${groupId}_${i}`;
+    memberTotals[simId] = 0; // Initialize to 0
+  }
+  
   // Get all contributions for this group - only current user and simulated members
   const contributionsSnapshot = await db.collection('contributions')
     .where('groupId', '==', groupId)
     .get();
   
-  const memberTotals = {};
   contributionsSnapshot.forEach(doc => {
     const data = doc.data();
     const pid = data.participantId;
     // Only include current user or simulated members (isSimulated flag or SIM_ prefix)
     if (pid === participantId || data.isSimulated === true || pid.startsWith('SIM_')) {
-      memberTotals[pid] = (memberTotals[pid] || 0) + data.contribution;
+      // Accumulate contributions across all rounds
+      if (!memberTotals[pid]) {
+        memberTotals[pid] = 0;
+      }
+      memberTotals[pid] += data.contribution;
     }
   });
   
