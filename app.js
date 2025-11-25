@@ -686,6 +686,26 @@ async function showRoundResults() {
     // Scroll to top of results smoothly
     roundResults.scrollIntoView({ behavior: 'smooth', block: 'start' });
     
+    // Show leaderboards and social norm based on config
+    if (experimentConfig.infoDisplayTiming === 'eachRound') {
+      // Load and show leaderboards
+      await loadLeaderboards();
+      
+      // Show social norm if enabled
+      if (experimentConfig.socialNormDisplay !== 'none') {
+        await showSocialNorm();
+      }
+      
+      // Auto-switch to leaderboard tab if any leaderboard is enabled
+      if (experimentConfig.showTeamLeaderboard || 
+          experimentConfig.showIndividualLeaderboardWithinTeam || 
+          experimentConfig.showIndividualLeaderboardAcrossTeams) {
+        setTimeout(() => {
+          switchTab('leaderboard');
+        }, 500);
+      }
+    }
+    
     // Update contribution comparison if shown
     if (showContributionComparison) {
       updateContributionComparison();
@@ -815,9 +835,279 @@ async function loadIndividualLeaderboard() {
 }
 
 function updateTreatmentPanels() {
-  document.getElementById('teamLeaderboardPanel').classList.toggle('hidden', !showTeamLeaderboard);
-  document.getElementById('individualLeaderboardPanel').classList.toggle('hidden', !showIndividualLeaderboard);
-  document.getElementById('contributionComparisonPanel').classList.toggle('hidden', !showContributionComparison);
+  // Update based on experiment config and timing
+  const showInfo = experimentConfig.infoDisplayTiming === 'eachRound';
+  
+  document.getElementById('teamLeaderboardPanel').classList.toggle('hidden', !showInfo || !experimentConfig.showTeamLeaderboard);
+  document.getElementById('individualLeaderboardPanel').classList.toggle('hidden', !showInfo || !experimentConfig.showIndividualLeaderboardAcrossTeams);
+  document.getElementById('contributionComparisonPanel').classList.toggle('hidden', !showInfo);
+}
+
+// Load all leaderboards for the leaderboard tab
+async function loadLeaderboards() {
+  const leaderboardContent = document.getElementById('leaderboardContent');
+  if (!leaderboardContent) return;
+  
+  leaderboardContent.innerHTML = '';
+  
+  // Load team leaderboard if enabled
+  if (experimentConfig.showTeamLeaderboard) {
+    await loadTeamLeaderboardForTab();
+  }
+  
+  // Load individual leaderboard within team if enabled
+  if (experimentConfig.showIndividualLeaderboardWithinTeam) {
+    await loadIndividualLeaderboardWithinTeam();
+  }
+  
+  // Load individual leaderboard across teams if enabled
+  if (experimentConfig.showIndividualLeaderboardAcrossTeams) {
+    await loadIndividualLeaderboardAcrossTeams();
+  }
+  
+  // Show social norm if enabled
+  if (experimentConfig.socialNormDisplay !== 'none') {
+    await showSocialNorm();
+  }
+}
+
+// Load team leaderboard for tab display
+async function loadTeamLeaderboardForTab() {
+  const leaderboardContent = document.getElementById('leaderboardContent');
+  const section = document.createElement('div');
+  section.className = 'leaderboard-section';
+  section.innerHTML = `
+    <h3>Team Leaderboard</h3>
+    <div class="leaderboard-container">
+      <table class="leaderboard-table">
+        <thead>
+          <tr>
+            <th>Rank</th>
+            <th>Team</th>
+            <th>Total Contribution</th>
+          </tr>
+        </thead>
+        <tbody id="teamLeaderboardTabBody">
+        </tbody>
+      </table>
+    </div>
+  `;
+  leaderboardContent.appendChild(section);
+  
+  // Get all groups and their total contributions
+  const groupsSnapshot = await db.collection('groups').get();
+  const groupTotals = {};
+  
+  for (const groupDoc of groupsSnapshot.docs) {
+    const gid = groupDoc.id;
+    const contributionsSnapshot = await db.collection('contributions')
+      .where('groupId', '==', gid)
+      .get();
+    
+    let total = 0;
+    contributionsSnapshot.forEach(doc => {
+      total += doc.data().contribution;
+    });
+    
+    groupTotals[gid] = total;
+  }
+  
+  // Sort by total
+  const sorted = Object.entries(groupTotals)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 10);
+  
+  const tbody = document.getElementById('teamLeaderboardTabBody');
+  tbody.innerHTML = '';
+  
+  sorted.forEach(([gid, total], index) => {
+    const row = tbody.insertRow();
+    row.insertCell(0).textContent = index + 1;
+    row.insertCell(1).textContent = `Group ${gid.substring(0, 8)}`;
+    row.insertCell(2).textContent = total;
+    if (gid === groupId) {
+      row.style.backgroundColor = '#e3f2fd';
+      row.style.fontWeight = 'bold';
+    }
+  });
+}
+
+// Load individual leaderboard within team
+async function loadIndividualLeaderboardWithinTeam() {
+  const leaderboardContent = document.getElementById('leaderboardContent');
+  const section = document.createElement('div');
+  section.className = 'leaderboard-section';
+  section.innerHTML = `
+    <h3>Individual Leaderboard (Your Team)</h3>
+    <div class="leaderboard-container">
+      <table class="leaderboard-table">
+        <thead>
+          <tr>
+            <th>Rank</th>
+            <th>Member</th>
+            <th>Total Contribution</th>
+          </tr>
+        </thead>
+        <tbody id="individualWithinTeamBody">
+        </tbody>
+      </table>
+    </div>
+  `;
+  leaderboardContent.appendChild(section);
+  
+  // Get all contributions for this group
+  const contributionsSnapshot = await db.collection('contributions')
+    .where('groupId', '==', groupId)
+    .get();
+  
+  const memberTotals = {};
+  contributionsSnapshot.forEach(doc => {
+    const pid = doc.data().participantId;
+    memberTotals[pid] = (memberTotals[pid] || 0) + doc.data().contribution;
+  });
+  
+  // Sort by total
+  const sorted = Object.entries(memberTotals)
+    .sort((a, b) => b[1] - a[1]);
+  
+  const tbody = document.getElementById('individualWithinTeamBody');
+  tbody.innerHTML = '';
+  
+  sorted.forEach(([pid, total], index) => {
+    const row = tbody.insertRow();
+    row.insertCell(0).textContent = index + 1;
+    const memberName = pid.startsWith('SIM_') ? `Team Member ${pid.split('_')[2]}` : pid;
+    row.insertCell(1).textContent = memberName;
+    row.insertCell(2).textContent = total;
+    if (pid === participantId) {
+      row.style.backgroundColor = '#e3f2fd';
+      row.style.fontWeight = 'bold';
+    }
+  });
+}
+
+// Load individual leaderboard across all teams
+async function loadIndividualLeaderboardAcrossTeams() {
+  const leaderboardContent = document.getElementById('leaderboardContent');
+  const section = document.createElement('div');
+  section.className = 'leaderboard-section';
+  section.innerHTML = `
+    <h3>Individual Leaderboard (All Teams)</h3>
+    <div class="leaderboard-container">
+      <table class="leaderboard-table">
+        <thead>
+          <tr>
+            <th>Rank</th>
+            <th>Participant</th>
+            <th>Total Contribution</th>
+          </tr>
+        </thead>
+        <tbody id="individualAcrossTeamsBody">
+        </tbody>
+      </table>
+    </div>
+  `;
+  leaderboardContent.appendChild(section);
+  
+  // Get all participants and their total contributions (excluding simulated)
+  const participantsSnapshot = await db.collection('participants').get();
+  const playerTotals = [];
+  
+  participantsSnapshot.forEach(doc => {
+    const data = doc.data();
+    playerTotals.push({
+      id: data.participantId,
+      total: data.totalContribution || 0
+    });
+  });
+  
+  // Sort by total
+  playerTotals.sort((a, b) => b.total - a.total);
+  
+  const tbody = document.getElementById('individualAcrossTeamsBody');
+  tbody.innerHTML = '';
+  
+  playerTotals.slice(0, 20).forEach((player, index) => {
+    const row = tbody.insertRow();
+    row.insertCell(0).textContent = index + 1;
+    row.insertCell(1).textContent = player.id;
+    row.insertCell(2).textContent = player.total;
+    if (player.id === participantId) {
+      row.style.backgroundColor = '#e3f2fd';
+      row.style.fontWeight = 'bold';
+    }
+  });
+}
+
+// Show social norm information
+async function showSocialNorm() {
+  // Get team contributions for current round
+  const contributionsSnapshot = await db.collection('contributions')
+    .where('groupId', '==', groupId)
+    .where('round', '==', currentRound)
+    .get();
+  
+  const contributions = [];
+  contributionsSnapshot.forEach(doc => {
+    contributions.push(doc.data().contribution);
+  });
+  
+  if (contributions.length === 0) return;
+  
+  // Calculate average
+  const avg = contributions.reduce((sum, c) => sum + c, 0) / contributions.length;
+  
+  // Calculate standard deviation if needed
+  let stdDev = 0;
+  if (experimentConfig.socialNormDisplay === 'avgAndStdDev') {
+    const variance = contributions.reduce((sum, c) => sum + Math.pow(c - avg, 2), 0) / contributions.length;
+    stdDev = Math.sqrt(variance);
+  }
+  
+  // Display in social norm panel
+  const socialNormPanel = document.getElementById('socialNormPanel');
+  const socialNormContent = document.getElementById('socialNormContent');
+  
+  if (socialNormPanel && socialNormContent) {
+    let html = '<div class="social-norm-stats">';
+    html += `<div class="social-norm-stat">
+      <div class="social-norm-stat-label">Team Average</div>
+      <div class="social-norm-stat-value">${avg.toFixed(2)}</div>
+    </div>`;
+    
+    if (experimentConfig.socialNormDisplay === 'avgAndStdDev') {
+      html += `<div class="social-norm-stat">
+        <div class="social-norm-stat-label">Standard Deviation</div>
+        <div class="social-norm-stat-value">${stdDev.toFixed(2)}</div>
+      </div>`;
+    }
+    
+    html += '</div>';
+    socialNormContent.innerHTML = html;
+    socialNormPanel.classList.remove('hidden');
+  }
+  
+  // Also show in leaderboard tab
+  const leaderboardContent = document.getElementById('leaderboardContent');
+  if (leaderboardContent && experimentConfig.infoDisplayTiming === 'eachRound') {
+    const section = document.createElement('div');
+    section.className = 'leaderboard-section';
+    section.innerHTML = `
+      <h3>Team Statistics</h3>
+      <div class="social-norm-stats">
+        <div class="social-norm-stat">
+          <div class="social-norm-stat-label">Team Average</div>
+          <div class="social-norm-stat-value">${avg.toFixed(2)}</div>
+        </div>
+        ${experimentConfig.socialNormDisplay === 'avgAndStdDev' ? `
+        <div class="social-norm-stat">
+          <div class="social-norm-stat-label">Standard Deviation</div>
+          <div class="social-norm-stat-value">${stdDev.toFixed(2)}</div>
+        </div>` : ''}
+      </div>
+    `;
+    leaderboardContent.appendChild(section);
+  }
 }
 
 async function showEndScreen() {
