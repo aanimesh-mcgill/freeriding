@@ -7,9 +7,86 @@
   <link rel="stylesheet" href="style.css">
   <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
+  <style>
+    .password-screen {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+    
+    .password-box {
+      background: white;
+      padding: 40px;
+      border-radius: 12px;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+      max-width: 400px;
+      width: 90%;
+    }
+    
+    .password-box h2 {
+      color: #667eea;
+      margin-bottom: 20px;
+      text-align: center;
+    }
+    
+    .password-box input {
+      width: 100%;
+      padding: 12px;
+      border: 2px solid #e0e0e0;
+      border-radius: 6px;
+      font-size: 16px;
+      margin-bottom: 15px;
+      box-sizing: border-box;
+    }
+    
+    .password-box input:focus {
+      outline: none;
+      border-color: #667eea;
+    }
+    
+    .password-box button {
+      width: 100%;
+      padding: 12px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      border-radius: 6px;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    
+    .password-box button:hover {
+      opacity: 0.9;
+    }
+    
+    .password-error {
+      color: #e74c3c;
+      margin-top: 10px;
+      text-align: center;
+      font-size: 14px;
+    }
+    
+    .admin-container.hidden {
+      display: none;
+    }
+  </style>
 </head>
 <body>
-  <div class="admin-container">
+  <!-- Password Screen -->
+  <div id="passwordScreen" class="password-screen">
+    <div class="password-box">
+      <h2>Admin Access</h2>
+      <p style="text-align: center; color: #666; margin-bottom: 20px;">Please enter the admin password to continue</p>
+      <input type="password" id="passwordInput" placeholder="Enter password" autocomplete="off">
+      <button id="passwordSubmitBtn">Login</button>
+      <div id="passwordError" class="password-error hidden"></div>
+    </div>
+  </div>
+
+  <div id="adminContainer" class="admin-container hidden">
     <header class="admin-header">
       <h1>Admin Dashboard</h1>
       <div class="admin-actions">
@@ -267,6 +344,7 @@
     </div>
   </div>
 
+  </div>
   <script src="admin.js"></script>
 </body>
 </html>

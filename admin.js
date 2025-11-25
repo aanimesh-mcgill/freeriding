@@ -13,15 +13,85 @@ const firebaseConfig = {
 const app = firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 
-// Initialize on page load
-document.addEventListener('DOMContentLoaded', () => {
+// Admin password (stored in Firestore settings, default is 'admin123')
+let adminPassword = 'admin123';
+
+// Check password on page load
+document.addEventListener('DOMContentLoaded', async () => {
+  // Load admin password from settings
+  try {
+    const settingsDoc = await db.collection('settings').doc('admin').get();
+    if (settingsDoc.exists && settingsDoc.data().password) {
+      adminPassword = settingsDoc.data().password;
+    }
+  } catch (error) {
+    console.log('Using default password');
+  }
+  
+  // Set up password screen
+  setupPasswordScreen();
+});
+
+function setupPasswordScreen() {
+  const passwordScreen = document.getElementById('passwordScreen');
+  const adminContainer = document.getElementById('adminContainer');
+  const passwordInput = document.getElementById('passwordInput');
+  const passwordSubmitBtn = document.getElementById('passwordSubmitBtn');
+  const passwordError = document.getElementById('passwordError');
+  
+  // Check if already authenticated (session storage)
+  const isAuthenticated = sessionStorage.getItem('adminAuthenticated') === 'true';
+  if (isAuthenticated) {
+    showAdminDashboard();
+    return;
+  }
+  
+  // Show password screen
+  passwordScreen.style.display = 'flex';
+  adminContainer.classList.add('hidden');
+  
+  // Handle Enter key
+  passwordInput.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') {
+      checkPassword();
+    }
+  });
+  
+  // Handle submit button
+  passwordSubmitBtn.addEventListener('click', checkPassword);
+  
+  function checkPassword() {
+    const enteredPassword = passwordInput.value;
+    
+    if (enteredPassword === adminPassword) {
+      // Correct password - show admin dashboard
+      sessionStorage.setItem('adminAuthenticated', 'true');
+      showAdminDashboard();
+    } else {
+      // Wrong password
+      passwordError.textContent = 'Incorrect password. Please try again.';
+      passwordError.classList.remove('hidden');
+      passwordInput.value = '';
+      passwordInput.focus();
+    }
+  }
+}
+
+function showAdminDashboard() {
+  const passwordScreen = document.getElementById('passwordScreen');
+  const adminContainer = document.getElementById('adminContainer');
+  
+  passwordScreen.style.display = 'none';
+  adminContainer.classList.remove('hidden');
+  
+  // Initialize admin dashboard
   initializeEventListeners();
   loadExperimentSettings();
   loadDashboardData();
   
   // Set up real-time listeners
   setupRealtimeListeners();
-});
+}
 
 function initializeEventListeners() {
   document.getElementById('refreshBtn').addEventListener('click', loadDashboardData);
@@ -272,8 +342,8 @@ async function loadRoundData() {
       payoffsMap.set(key, data);
     });
     
-    // Display contributions
-    snapshot.forEach(doc => {
+    // Display contributions - use for...of loop to allow await
+    for (const doc of snapshot.docs) {
       const data = doc.data();
       const row = tbody.insertRow();
       
@@ -294,7 +364,7 @@ async function loadRoundData() {
       // Timestamp
       const timestamp = data.timestamp ? data.timestamp.toDate() : new Date(data.submittedAt);
       row.insertCell(6).textContent = timestamp.toLocaleString();
-    });
+    }
     
   } catch (error) {
     console.error('Error loading round data:', error);
@@ -385,7 +455,9 @@ async function exportToExcel() {
     });
     
     // Calculate group totals
-    for (const [key, _] of groupTotalsMap) {
+    // Use for...of to allow await
+    const groupTotalsEntries = Array.from(groupTotalsMap.entries());
+    for (const [key, _] of groupTotalsEntries) {
       const [groupId, round] = key.split('_');
       const total = await getGroupTotalForRound(groupId, parseInt(round));
       groupTotalsMap.set(key, total);
