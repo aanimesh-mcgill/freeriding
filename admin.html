@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Admin Dashboard - Free-Riding Experiment</title>
+  <title>Admin Dashboard - Decision-Making Experiment</title>
   <link rel="stylesheet" href="style.css">
   <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
@@ -89,6 +89,25 @@
               <option value="avgAndStdDev">Average + Std Deviation</option>
             </select>
             <small style="display: block; color: #666; margin-top: 5px;">What social norm info to show</small>
+          </div>
+          
+          <div class="setting-item">
+            <label>Focal Member Team Rank:</label>
+            <select id="focalMemberTeamRankSetting">
+              <option value="high">High (top of leaderboard)</option>
+              <option value="middle">Middle</option>
+              <option value="low">Low (bottom of leaderboard)</option>
+            </select>
+            <small style="display: block; color: #666; margin-top: 5px;">Where focal user's team appears in team leaderboard</small>
+          </div>
+          
+          <div class="setting-item">
+            <label>Team Leaderboard Ranking Stability:</label>
+            <select id="teamLeaderboardRankingStabilitySetting">
+              <option value="stable">Stable (team position stays same)</option>
+              <option value="dynamic">Dynamic (team position changes)</option>
+            </select>
+            <small style="display: block; color: #666; margin-top: 5px;">Whether focal team's rank changes across rounds</small>
           </div>
         </div>
         

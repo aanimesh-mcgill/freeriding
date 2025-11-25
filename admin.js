@@ -48,6 +48,8 @@ async function loadExperimentSettings() {
       document.getElementById('focalUserConditionSetting').value = settings.focalUserCondition || 'random';
       document.getElementById('leaderboardStabilitySetting').value = settings.leaderboardStability || 'stable';
       document.getElementById('socialNormDisplaySetting').value = settings.socialNormDisplay || 'none';
+      document.getElementById('focalMemberTeamRankSetting').value = settings.focalMemberTeamRank || 'middle';
+      document.getElementById('teamLeaderboardRankingStabilitySetting').value = settings.teamLeaderboardRankingStability || 'stable';
       
       // Information display options
       document.getElementById('showTeamLeaderboardSetting').checked = settings.showTeamLeaderboard || false;
@@ -73,6 +75,8 @@ async function saveSettings() {
     focalUserCondition: document.getElementById('focalUserConditionSetting').value,
     leaderboardStability: document.getElementById('leaderboardStabilitySetting').value,
     socialNormDisplay: document.getElementById('socialNormDisplaySetting').value,
+    focalMemberTeamRank: document.getElementById('focalMemberTeamRankSetting').value,
+    teamLeaderboardRankingStability: document.getElementById('teamLeaderboardRankingStabilitySetting').value,
     
     // Information display options
     showTeamLeaderboard: document.getElementById('showTeamLeaderboardSetting').checked,

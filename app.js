@@ -48,6 +48,12 @@ let experimentConfig = {
   // Focal User Condition
   focalUserCondition: 'random', // 'freeRider' or 'random'
   
+  // Focal Member Team Rank
+  focalMemberTeamRank: 'middle', // 'high', 'middle', or 'low'
+  
+  // Team Leaderboard Ranking Stability
+  teamLeaderboardRankingStability: 'stable', // 'stable' or 'dynamic'
+  
   // Simulated Team Members
   simulatedTeamSize: 3, // Number of simulated team members (total group size = 4)
   simulatedTeamContributions: [] // Will be generated based on condition
@@ -673,7 +679,7 @@ async function showRoundResults() {
   }
   
   // Wait for configured delay before showing results
-  setTimeout(() => {
+  setTimeout(async () => {
     // Display results
     document.getElementById('resultYourContribution').textContent = contribution;
     document.getElementById('resultGroupTotal').textContent = groupTotal;
@@ -703,7 +709,7 @@ async function showRoundResults() {
       if (experimentConfig.showTeamLeaderboard || 
           experimentConfig.showIndividualLeaderboardWithinTeam || 
           experimentConfig.showIndividualLeaderboardAcrossTeams) {
-        setTimeout(() => {
+    setTimeout(() => {
           switchTab('leaderboard');
         }, 500);
       }
@@ -719,15 +725,15 @@ async function updateContributionComparison() {
     .where('groupId', '==', groupId)
     .where('round', '==', currentRound)
     .get();
-  
+
   let sum = 0;
   let count = 0;
-  
+
   contributionsSnapshot.forEach(doc => {
     sum += doc.data().contribution;
     count++;
   });
-  
+
   const teamAvg = count > 0 ? sum / count : 0;
   
   document.getElementById('yourContribution').textContent = contribution;
@@ -738,13 +744,13 @@ async function updateContributionComparison() {
   
   statusEl.classList.remove('higher', 'similar', 'lower');
   
-  if (contribution > teamAvg) {
+    if (contribution > teamAvg) {
     statusEl.classList.add('higher');
     messageEl.textContent = 'You contributed MORE than the team average';
   } else if (Math.abs(contribution - teamAvg) < 0.5) {
     statusEl.classList.add('similar');
     messageEl.textContent = 'You contributed SIMILAR to the team average';
-  } else {
+    } else {
     statusEl.classList.add('lower');
     messageEl.textContent = 'You contributed LESS than the team average';
   }
@@ -899,8 +905,20 @@ async function loadTeamLeaderboardForTab() {
   const groupsSnapshot = await db.collection('groups').get();
   const groupTotals = {};
   
+  // Calculate focal team's total
+  let focalTeamTotal = 0;
+  const focalContributions = await db.collection('contributions')
+    .where('groupId', '==', groupId)
+    .get();
+  focalContributions.forEach(doc => {
+    focalTeamTotal += doc.data().contribution;
+  });
+  
+  // Get other teams' totals
   for (const groupDoc of groupsSnapshot.docs) {
     const gid = groupDoc.id;
+    if (gid === groupId) continue; // Skip focal team, already calculated
+    
     const contributionsSnapshot = await db.collection('contributions')
       .where('groupId', '==', gid)
       .get();
@@ -913,22 +931,97 @@ async function loadTeamLeaderboardForTab() {
     groupTotals[gid] = total;
   }
   
-  // Sort by total
-  const sorted = Object.entries(groupTotals)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 10);
+  // Determine target position for focal team
+  const allTeamTotals = Object.values(groupTotals);
+  allTeamTotals.push(focalTeamTotal);
+  allTeamTotals.sort((a, b) => b - a);
   
+  let targetRank;
+  const totalTeams = allTeamTotals.length;
+  
+  if (experimentConfig.teamLeaderboardRankingStability === 'dynamic') {
+    // Dynamic: position changes each round
+    const roundBasedRank = (currentRound % 3); // Cycles through 0, 1, 2
+    if (experimentConfig.focalMemberTeamRank === 'high') {
+      targetRank = roundBasedRank === 0 ? 1 : Math.floor(totalTeams * 0.3);
+    } else if (experimentConfig.focalMemberTeamRank === 'low') {
+      targetRank = roundBasedRank === 0 ? totalTeams : Math.floor(totalTeams * 0.7);
+    } else {
+      targetRank = Math.floor(totalTeams * 0.5);
+    }
+  } else {
+    // Stable: position stays same
+    if (experimentConfig.focalMemberTeamRank === 'high') {
+      targetRank = 1; // Top position
+    } else if (experimentConfig.focalMemberTeamRank === 'low') {
+      targetRank = totalTeams; // Bottom position
+    } else {
+      targetRank = Math.floor(totalTeams * 0.5); // Middle position
+    }
+  }
+  
+  // Create simulated teams to ensure focal team is at target rank
+  // We need enough teams so focal team can be positioned correctly
+  const minTeamsNeeded = Math.max(10, targetRank + 2);
+  const simulatedTeams = [];
+  
+  // Generate simulated team totals to position focal team correctly
+  const sortedOtherTeams = Object.entries(groupTotals).sort((a, b) => b[1] - a[1]);
+  
+  // Calculate what other teams should have to position focal team at target rank
+  for (let i = 0; i < minTeamsNeeded - 1; i++) {
+    let simulatedTotal;
+    if (i < targetRank - 1) {
+      // Teams above focal team should have higher totals
+      simulatedTotal = focalTeamTotal + (minTeamsNeeded - i) * 5;
+    } else {
+      // Teams below focal team should have lower totals
+      simulatedTotal = Math.max(0, focalTeamTotal - (i - targetRank + 2) * 5);
+    }
+    
+    // Use real team if available, otherwise use simulated
+    if (i < sortedOtherTeams.length) {
+      // Adjust real team's displayed total to position correctly
+      groupTotals[sortedOtherTeams[i][0]] = simulatedTotal;
+    } else {
+      simulatedTeams.push({
+        id: `SIM_TEAM_${i}`,
+        total: simulatedTotal
+      });
+    }
+  }
+  
+  // Combine real and simulated teams
+  const allTeams = [];
+  Object.entries(groupTotals).forEach(([gid, total]) => {
+    allTeams.push({ id: gid, total: total, isSimulated: false });
+  });
+  simulatedTeams.forEach(team => {
+    allTeams.push({ id: team.id, total: team.total, isSimulated: true });
+  });
+  
+  // Add focal team
+  allTeams.push({ id: groupId, total: focalTeamTotal, isSimulated: false, isFocal: true });
+  
+  // Sort by total
+  allTeams.sort((a, b) => b.total - a.total);
+  
+  // Display top 10
   const tbody = document.getElementById('teamLeaderboardTabBody');
   tbody.innerHTML = '';
   
-  sorted.forEach(([gid, total], index) => {
+  allTeams.slice(0, 10).forEach((team, index) => {
     const row = tbody.insertRow();
     row.insertCell(0).textContent = index + 1;
-    row.insertCell(1).textContent = `Group ${gid.substring(0, 8)}`;
-    row.insertCell(2).textContent = total;
-    if (gid === groupId) {
+    const teamName = team.isSimulated ? `Team ${team.id.substring(9)}` : `Group ${team.id.substring(0, 8)}`;
+    row.insertCell(1).textContent = teamName;
+    row.insertCell(2).textContent = team.total;
+    
+    if (team.isFocal) {
       row.style.backgroundColor = '#e3f2fd';
       row.style.fontWeight = 'bold';
+    } else if (team.isSimulated) {
+      row.style.opacity = '0.7';
     }
   });
 }
