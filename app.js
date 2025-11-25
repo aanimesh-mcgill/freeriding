@@ -508,13 +508,25 @@ async function submitContribution() {
   showLoading(true);
   
   try {
-    // Save contribution
+    // Save contribution with all treatment information
     await db.collection('contributions').add({
       participantId,
       groupId,
       round: currentRound,
       contribution,
       endowment,
+      // Treatment information
+      treatmentConditions: {
+        infoDisplayTiming: experimentConfig.infoDisplayTiming,
+        focalUserCondition: experimentConfig.focalUserCondition,
+        leaderboardStability: experimentConfig.leaderboardStability,
+        socialNormDisplay: experimentConfig.socialNormDisplay,
+        focalMemberTeamRank: experimentConfig.focalMemberTeamRank,
+        teamLeaderboardRankingStability: experimentConfig.teamLeaderboardRankingStability,
+        showTeamLeaderboard: experimentConfig.showTeamLeaderboard,
+        showIndividualLeaderboardWithinTeam: experimentConfig.showIndividualLeaderboardWithinTeam,
+        showIndividualLeaderboardAcrossTeams: experimentConfig.showIndividualLeaderboardAcrossTeams
+      },
       timestamp: firebase.firestore.FieldValue.serverTimestamp(),
       submittedAt: Date.now()
     });
@@ -609,7 +621,7 @@ async function calculateRoundPayoffs() {
     const kept = endowment - contrib;
     const payoff = kept + groupShare;
     
-    // Save payoff
+    // Save payoff with all treatment information
     const payoffRef = db.collection('payoffs').doc();
     batch.set(payoffRef, {
       participantId: pid,
@@ -620,6 +632,18 @@ async function calculateRoundPayoffs() {
       groupShare,
       kept,
       payoff,
+      // Treatment information (only for real participants, not simulated)
+      treatmentConditions: pid.startsWith('SIM_') ? null : {
+        infoDisplayTiming: experimentConfig.infoDisplayTiming,
+        focalUserCondition: experimentConfig.focalUserCondition,
+        leaderboardStability: experimentConfig.leaderboardStability,
+        socialNormDisplay: experimentConfig.socialNormDisplay,
+        focalMemberTeamRank: experimentConfig.focalMemberTeamRank,
+        teamLeaderboardRankingStability: experimentConfig.teamLeaderboardRankingStability,
+        showTeamLeaderboard: experimentConfig.showTeamLeaderboard,
+        showIndividualLeaderboardWithinTeam: experimentConfig.showIndividualLeaderboardWithinTeam,
+        showIndividualLeaderboardAcrossTeams: experimentConfig.showIndividualLeaderboardAcrossTeams
+      },
       timestamp: firebase.firestore.FieldValue.serverTimestamp()
     });
     

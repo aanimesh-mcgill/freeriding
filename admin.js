@@ -355,7 +355,7 @@ async function exportToExcel() {
     ]);
     
     // Convert to CSV format
-    let csv = 'Participant ID,Group ID,Round,Contribution,Group Total,Payoff,Cumulative Payoff,Treatment Conditions\n';
+    let csv = 'Participant ID,Group ID,Round,Contribution,Group Total,Payoff,Cumulative Payoff,Info Timing,Focal Condition,LB Stability,Social Norm,Team Rank,Team Rank Stability,Team LB,Ind LB Team,Ind LB All\n';
     
     const participantsMap = new Map();
     participantsSnapshot.forEach(doc => {
