@@ -461,11 +461,14 @@ async function startExperiment() {
       // Generate randomized sequence of within-subject factor combinations
       experimentConfig.withinSubjectSequence = generateWithinSubjectSequence(totalRounds);
       
-      // Assign to group (same group for all rounds)
-      groupId = await assignToGroup(participantId);
+      // Create 10 teams for this user's experiment and assign user to team 3
+      const userTeams = await createUserExperimentTeams(participantId);
+      groupId = userTeams.userTeamId; // User is assigned to team 3
       
-      // Generate simulated team member contributions for all rounds
-      await generateSimulatedTeamContributions(groupId);
+      // Generate simulated team member contributions for all 10 teams
+      for (const teamId of userTeams.allTeamIds) {
+        await generateSimulatedTeamContributions(teamId);
+      }
       
       // Create participant record with experiment config
       await db.collection('participants').doc(participantId).set({
@@ -1919,36 +1922,47 @@ async function loadIndividualLeaderboardAcrossTeams() {
   `;
   leaderboardContent.appendChild(section);
   
-  // Get ALL contributions from ALL groups (for all 60 members: 10 teams × 6 members)
-  const allContributionsSnapshot = await db.collection('contributions').get();
+  // Get all groups for this user's experiment session
+  const userGroupsSnapshot = await db.collection('groups')
+    .where('participantId', '==', participantId)
+    .get();
   
-  // Get current round contributions from all groups
+  const userTeamIds = userGroupsSnapshot.docs.map(doc => doc.id);
+  
+  if (userTeamIds.length === 0) {
+    // Fallback: use current groupId if no groups found with participantId
+    userTeamIds.push(groupId);
+  }
+  
+  // Get contributions ONLY from this user's experiment teams
+  const allContributionsSnapshot = await db.collection('contributions')
+    .where('groupId', 'in', userTeamIds.length > 10 ? userTeamIds.slice(0, 10) : userTeamIds)
+    .get();
+  
+  // Get current round contributions from user's teams
   const currentRoundContributionsSnapshot = await db.collection('contributions')
+    .where('groupId', 'in', userTeamIds.length > 10 ? userTeamIds.slice(0, 10) : userTeamIds)
     .where('round', '==', currentRound)
     .get();
   
   // Create a map to track team numbers for each groupId
   const teamNumberMap = new Map();
-  teamNumberMap.set(groupId, 5); // Focal team is always Team 5
   
-  // Get all groups to assign team numbers
-  const allGroupsSnapshot = await db.collection('groups').get();
-  const availableTeamNumbers = [1, 2, 3, 4, 6, 7, 8, 9, 10];
-  let teamNumIndex = 0;
-  
-  allGroupsSnapshot.forEach(doc => {
+  // Get team numbers from groups
+  userGroupsSnapshot.forEach(doc => {
+    const data = doc.data();
     const gid = doc.id;
-    if (gid !== groupId && !teamNumberMap.has(gid) && teamNumIndex < availableTeamNumbers.length) {
-      teamNumberMap.set(gid, availableTeamNumbers[teamNumIndex]);
-      teamNumIndex++;
-    }
+    const teamNum = data.teamNumber || 3; // Default to 3 if not set
+    teamNumberMap.set(gid, teamNum);
   });
+  
+  // Ensure user's team is Team 3
+  teamNumberMap.set(groupId, 3);
   
   // Calculate cumulative totals and current round contributions for ALL members
   const playerData = new Map();
   
   // Initialize with current user
-  // For cumulative, calculate from all contributions (not from participants.totalContribution which might be stale)
   const currentUserContributions = allContributionsSnapshot.docs.filter(d => d.data().participantId === participantId);
   const currentUserCumulative = currentUserContributions.reduce((sum, doc) => sum + doc.data().contribution, 0);
   const currentUserRound = currentRoundContributionsSnapshot.docs.find(d => d.data().participantId === participantId);
@@ -1962,28 +1976,31 @@ async function loadIndividualLeaderboardAcrossTeams() {
     groupId: groupId
   });
   
-  // Process all contributions to get cumulative totals for all simulated members from all teams
+  // Process all contributions to get cumulative totals for all simulated members from user's teams only
   allContributionsSnapshot.forEach(doc => {
     const data = doc.data();
     const pid = data.participantId;
-    // Include all simulated members (isSimulated flag or SIM_ prefix) from all groups
+    // Only include simulated members from this user's experiment teams
     if ((data.isSimulated === true || pid.startsWith('SIM_')) && pid !== participantId) {
       // Extract groupId from SIM_groupId_memberNum format
       const parts = pid.split('_');
       const simGroupId = parts.length > 1 ? parts[1] : groupId;
       const memberNum = parts.length > 2 ? parts[2] : '1';
       
-      if (!playerData.has(pid)) {
-        playerData.set(pid, {
-          id: pid,
-          cumulative: 0,
-          thisRound: 0,
-          isSimulated: true,
-          groupId: simGroupId,
-          memberNum: memberNum
-        });
+      // Only process if this simulated member belongs to one of the user's teams
+      if (userTeamIds.includes(simGroupId)) {
+        if (!playerData.has(pid)) {
+          playerData.set(pid, {
+            id: pid,
+            cumulative: 0,
+            thisRound: 0,
+            isSimulated: true,
+            groupId: simGroupId,
+            memberNum: memberNum
+          });
+        }
+        playerData.get(pid).cumulative += data.contribution;
       }
-      playerData.get(pid).cumulative += data.contribution;
     }
   });
   
@@ -1992,7 +2009,9 @@ async function loadIndividualLeaderboardAcrossTeams() {
     const data = doc.data();
     const pid = data.participantId;
     if ((data.isSimulated === true || pid.startsWith('SIM_')) && pid !== participantId) {
-      if (playerData.has(pid)) {
+      const parts = pid.split('_');
+      const simGroupId = parts.length > 1 ? parts[1] : groupId;
+      if (userTeamIds.includes(simGroupId) && playerData.has(pid)) {
         playerData.get(pid).thisRound += data.contribution;
       }
     }
