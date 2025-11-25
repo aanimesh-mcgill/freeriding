@@ -776,14 +776,30 @@ async function proceedToNextRound() {
 }
 
 async function loadTeamLeaderboard() {
+  // Use the same logic as loadTeamLeaderboardForTab but for treatment panel
+  const tbody = document.getElementById('teamLeaderboardBody');
+  if (!tbody) return;
+  
   // Get all groups and their total contributions
   const groupsSnapshot = await db.collection('groups').get();
   const groupTotals = {};
   
+  // Calculate focal team's total
+  let focalTeamTotal = 0;
+  const focalContributions = await db.collection('contributions')
+    .where('groupId', '==', groupId)
+    .get();
+  focalContributions.forEach(doc => {
+    focalTeamTotal += doc.data().contribution;
+  });
+  
+  // Get other teams' totals
   for (const groupDoc of groupsSnapshot.docs) {
-    const groupId = groupDoc.id;
+    const gid = groupDoc.id;
+    if (gid === groupId) continue;
+    
     const contributionsSnapshot = await db.collection('contributions')
-      .where('groupId', '==', groupId)
+      .where('groupId', '==', gid)
       .get();
     
     let total = 0;
@@ -791,22 +807,81 @@ async function loadTeamLeaderboard() {
       total += doc.data().contribution;
     });
     
-    groupTotals[groupId] = total;
+    groupTotals[gid] = total;
   }
   
+  // Determine target position for focal team (same logic as loadTeamLeaderboardForTab)
+  const allTeamTotals = Object.values(groupTotals);
+  allTeamTotals.push(focalTeamTotal);
+  allTeamTotals.sort((a, b) => b - a);
+  
+  let targetRank;
+  const totalTeams = allTeamTotals.length;
+  
+  if (experimentConfig.teamLeaderboardRankingStability === 'dynamic') {
+    const roundBasedRank = (currentRound % 3);
+    if (experimentConfig.focalMemberTeamRank === 'high') {
+      targetRank = roundBasedRank === 0 ? 1 : Math.floor(totalTeams * 0.3);
+    } else if (experimentConfig.focalMemberTeamRank === 'low') {
+      targetRank = roundBasedRank === 0 ? totalTeams : Math.floor(totalTeams * 0.7);
+    } else {
+      targetRank = Math.floor(totalTeams * 0.5);
+    }
+  } else {
+    if (experimentConfig.focalMemberTeamRank === 'high') {
+      targetRank = 1;
+    } else if (experimentConfig.focalMemberTeamRank === 'low') {
+      targetRank = totalTeams;
+    } else {
+      targetRank = Math.floor(totalTeams * 0.5);
+    }
+  }
+  
+  // Create simulated teams to ensure focal team is at target rank
+  const minTeamsNeeded = Math.max(10, targetRank + 2);
+  const simulatedTeams = [];
+  const sortedOtherTeams = Object.entries(groupTotals).sort((a, b) => b[1] - a[1]);
+  
+  for (let i = 0; i < minTeamsNeeded - 1; i++) {
+    let simulatedTotal;
+    if (i < targetRank - 1) {
+      simulatedTotal = focalTeamTotal + (minTeamsNeeded - i) * 5;
+    } else {
+      simulatedTotal = Math.max(0, focalTeamTotal - (i - targetRank + 2) * 5);
+    }
+    
+    if (i < sortedOtherTeams.length) {
+      groupTotals[sortedOtherTeams[i][0]] = simulatedTotal;
+    } else {
+      simulatedTeams.push({ id: `SIM_TEAM_${i}`, total: simulatedTotal });
+    }
+  }
+  
+  // Combine all teams
+  const allTeams = [];
+  Object.entries(groupTotals).forEach(([gid, total]) => {
+    allTeams.push({ id: gid, total: total, isSimulated: false });
+  });
+  simulatedTeams.forEach(team => {
+    allTeams.push({ id: team.id, total: team.total, isSimulated: true });
+  });
+  allTeams.push({ id: groupId, total: focalTeamTotal, isSimulated: false, isFocal: true });
+  
   // Sort by total
-  const sorted = Object.entries(groupTotals)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 10); // Top 10
+  allTeams.sort((a, b) => b.total - a.total);
   
-  const tbody = document.getElementById('teamLeaderboardBody');
+  // Display top 10
   tbody.innerHTML = '';
-  
-  sorted.forEach(([gid, total], index) => {
+  allTeams.slice(0, 10).forEach((team, index) => {
     const row = tbody.insertRow();
     row.insertCell(0).textContent = index + 1;
-    row.insertCell(1).textContent = `Group ${gid.substring(0, 8)}`;
-    row.insertCell(2).textContent = total;
+    const teamName = team.isSimulated ? `Team ${team.id.substring(9)}` : `Group ${team.id.substring(0, 8)}`;
+    row.insertCell(1).textContent = teamName;
+    row.insertCell(2).textContent = team.total;
+    if (team.isFocal) {
+      row.style.backgroundColor = '#e3f2fd';
+      row.style.fontWeight = 'bold';
+    }
   });
   
   document.getElementById('teamLeaderboardPanel').classList.remove('hidden');
