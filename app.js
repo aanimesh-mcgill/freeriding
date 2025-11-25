@@ -503,6 +503,16 @@ async function startExperiment() {
     // Update treatment conditions icon visibility and content
     updateTreatmentConditionsIcon();
     
+    // Hide/show leaderboard tab based on infoType
+    const leaderboardTabBtn = document.querySelector('.tab-btn[data-tab="leaderboard"]');
+    if (leaderboardTabBtn) {
+      if (experimentConfig.infoType === 'noInfo') {
+        leaderboardTabBtn.style.display = 'none';
+      } else {
+        leaderboardTabBtn.style.display = 'block';
+      }
+    }
+    
     // Set up real-time leaderboard listeners
     setupLeaderboardListeners();
     
@@ -1100,6 +1110,16 @@ async function showRoundResults() {
     waitingForResults.classList.remove('hidden');
     progressBar.style.width = '0%';
     
+    // Update waiting message based on infoType - don't mention leaderboard if not applicable
+    const waitingMessage = waitingForResults.querySelector('p');
+    if (waitingMessage) {
+      if (experimentConfig.infoType === 'noInfo' || experimentConfig.infoType === 'socialNorm') {
+        waitingMessage.textContent = 'Calculating results...';
+      } else {
+        waitingMessage.textContent = 'Calculating results and preparing leaderboards...';
+      }
+    }
+    
     // Animate progress bar
     let progress = 0;
     const progressInterval = setInterval(() => {
@@ -1438,7 +1458,17 @@ async function loadLeaderboards() {
   
   // Don't show leaderboards in round 1 (no data yet)
   if (currentRound === 1) {
-    leaderboardContent.innerHTML = '<p style="text-align: center; color: #666; padding: 20px;">Leaderboard will be available after Round 1 is complete.</p>';
+    if (experimentConfig.infoType === 'noInfo') {
+      // No info - don't show anything in leaderboard tab
+      leaderboardContent.innerHTML = '';
+      return;
+    } else if (experimentConfig.infoType === 'socialNorm') {
+      // Social norm - show generic message
+      leaderboardContent.innerHTML = '<p style="text-align: center; color: #666; padding: 20px;">Information will be available after Round 1 is complete.</p>';
+    } else {
+      // Has leaderboard
+      leaderboardContent.innerHTML = '<p style="text-align: center; color: #666; padding: 20px;">Leaderboard will be available after Round 1 is complete.</p>';
+    }
     return;
   }
   
