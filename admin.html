@@ -176,6 +176,24 @@
           </div>
           
           <div class="setting-item">
+            <label>Social Norm Average (High Team Rank):</label>
+            <input type="number" id="socialNormAverageHighSetting" value="16" min="0" max="20" step="0.1">
+            <small style="display: block; color: #666; margin-top: 5px;">Target average when team rank is high (default: 16, with +/-2 variation)</small>
+          </div>
+          
+          <div class="setting-item">
+            <label>Social Norm Average (Low Team Rank):</label>
+            <input type="number" id="socialNormAverageLowSetting" value="6" min="0" max="20" step="0.1">
+            <small style="display: block; color: #666; margin-top: 5px;">Target average when team rank is low (default: 6, with +/-2 variation)</small>
+          </div>
+          
+          <div class="setting-item">
+            <label>Social Norm Standard Deviation:</label>
+            <input type="number" id="socialNormStdDevSetting" value="2" min="0" max="10" step="0.1">
+            <small style="display: block; color: #666; margin-top: 5px;">Standard deviation for social norm (not displayed, used for calculation)</small>
+          </div>
+          
+          <div class="setting-item">
             <label>Focal Member Team Rank:</label>
             <select id="focalMemberTeamRankSetting">
               <option value="high">High (top of leaderboard)</option>

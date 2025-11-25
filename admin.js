@@ -119,6 +119,9 @@ async function loadExperimentSettings() {
       document.getElementById('focalUserConditionSetting').value = settings.focalUserCondition || 'random';
       document.getElementById('leaderboardStabilitySetting').value = settings.leaderboardStability || 'stable';
       document.getElementById('socialNormDisplaySetting').value = settings.socialNormDisplay || 'none';
+      document.getElementById('socialNormAverageHighSetting').value = settings.socialNormAverageHigh || 16;
+      document.getElementById('socialNormAverageLowSetting').value = settings.socialNormAverageLow || 6;
+      document.getElementById('socialNormStdDevSetting').value = settings.socialNormStdDev || 2;
       document.getElementById('focalMemberTeamRankSetting').value = settings.focalMemberTeamRank || 'middle';
       document.getElementById('teamLeaderboardRankingStabilitySetting').value = settings.teamLeaderboardRankingStability || 'stable';
       
@@ -148,6 +151,9 @@ async function saveSettings() {
     focalUserCondition: document.getElementById('focalUserConditionSetting').value,
     leaderboardStability: document.getElementById('leaderboardStabilitySetting').value,
     socialNormDisplay: document.getElementById('socialNormDisplaySetting').value,
+    socialNormAverageHigh: parseFloat(document.getElementById('socialNormAverageHighSetting').value),
+    socialNormAverageLow: parseFloat(document.getElementById('socialNormAverageLowSetting').value),
+    socialNormStdDev: parseFloat(document.getElementById('socialNormStdDevSetting').value),
     focalMemberTeamRank: document.getElementById('focalMemberTeamRankSetting').value,
     teamLeaderboardRankingStability: document.getElementById('teamLeaderboardRankingStabilitySetting').value,
     

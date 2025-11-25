@@ -690,10 +690,59 @@ async function getSimulatedTeamContributions(focalUserContribution) {
   const contributions = simDoc.data().contributions || [];
   const adjustedContributions = [];
   
-  // Calculate average of simulated members
+  // For social norm condition, adjust contributions to achieve target average
+  if (experimentConfig.infoType === 'socialNorm') {
+    // Get social norm settings from admin
+    const settingsDoc = await db.collection('settings').doc('experiment').get();
+    const settings = settingsDoc.exists ? settingsDoc.data() : {};
+    
+    // Determine target average based on team rank condition
+    let targetAvg;
+    if (experimentConfig.teamContribution === 'high') {
+      targetAvg = settings.socialNormAverageHigh !== undefined ? parseFloat(settings.socialNormAverageHigh) : 16;
+    } else {
+      targetAvg = settings.socialNormAverageLow !== undefined ? parseFloat(settings.socialNormAverageLow) : 6;
+    }
+    
+    // Add +/-2 variation
+    const variation = (Math.random() - 0.5) * 4; // -2 to +2
+    const finalTargetAvg = Math.max(0, Math.min(endowment, targetAvg + variation));
+    
+    // Calculate total needed: (targetAvg * groupSize) - userContribution
+    const totalNeeded = (finalTargetAvg * groupSize) - focalUserContribution;
+    const avgPerSimulated = totalNeeded / contributions.length;
+    
+    // Set contributions to achieve target average
+    contributions.forEach((c, index) => {
+      // Add small variation to each member's contribution
+      const memberVariation = (Math.random() - 0.5) * 2; // -1 to +1 per member
+      const contrib = Math.max(0, Math.min(endowment, Math.round(avgPerSimulated + memberVariation)));
+      adjustedContributions.push({
+        ...c,
+        contribution: contrib
+      });
+    });
+    
+    // Ensure the total matches target (adjust if needed)
+    const currentTotal = adjustedContributions.reduce((sum, c) => sum + c.contribution, 0) + focalUserContribution;
+    const targetTotal = finalTargetAvg * groupSize;
+    const diff = targetTotal - currentTotal;
+    
+    if (Math.abs(diff) > 0.5) {
+      // Distribute the difference across simulated members
+      const adjustmentPerMember = Math.round(diff / contributions.length);
+      adjustedContributions.forEach(c => {
+        c.contribution = Math.max(0, Math.min(endowment, c.contribution + adjustmentPerMember));
+      });
+    }
+    
+    return adjustedContributions;
+  }
+  
+  // Calculate average of simulated members (for non-social norm conditions)
   const simAvg = contributions.reduce((sum, c) => sum + c.contribution, 0) / contributions.length;
   
-  // Adjust based on focal user contribution level (85% rounds lower or higher than average)
+  // Adjust based on focal user contribution level (85% rounds: user in bottom 3 or top 3)
   // Track which rounds should be lower/higher to ensure 85% compliance
   const roundsSoFar = currentRound;
   const totalRoundsForCondition = totalRounds;
@@ -701,34 +750,80 @@ async function getSimulatedTeamContributions(focalUserContribution) {
   const roundsLower = Math.floor((roundsSoFar / totalRoundsForCondition) * targetLowerRounds);
   const shouldBeLower = roundsLower < targetLowerRounds;
   
-  let adjustment;
+  // Sort base contributions to understand current ranking
+  const sortedBaseContribs = [...contributions].sort((a, b) => b.contribution - a.contribution);
+  
   if (experimentConfig.focalUserContributionLevel === 'lower') {
-    // 85% rounds: focal user lower than average
+    // 85% rounds: focal user should be in bottom 3 (ranks 4, 5, or 6 out of 6)
     if (shouldBeLower || Math.random() < 0.85) {
-      // Make simulated members contribute more so focal user is lower
-      const targetAvg = focalUserContribution + (endowment * 0.3); // Simulated members contribute 30% more
-      adjustment = targetAvg - simAvg;
+      // Ensure user is in bottom 3 by making at least 3 simulated members contribute more
+      // Target: user should rank 4th, 5th, or 6th
+      const targetRank = 4 + Math.floor(Math.random() * 3); // Random rank 4, 5, or 6
+      const numMembersAboveUser = targetRank - 1; // Number of members that should rank above user (3, 4, or 5)
+      
+      // Create adjusted contributions array
+      const sortedSims = contributions.map(c => ({ ...c }));
+      
+      // Make numMembersAboveUser members contribute more than user
+      for (let i = 0; i < numMembersAboveUser; i++) {
+        const targetContrib = focalUserContribution + Math.round(3 + Math.random() * 5); // 3-8 tokens more
+        sortedSims[i].contribution = Math.max(0, Math.min(endowment, targetContrib));
+      }
+      
+      // Make remaining members contribute around or below user
+      for (let i = numMembersAboveUser; i < sortedSims.length; i++) {
+        const targetContrib = focalUserContribution - Math.round(Math.random() * 3); // 0-3 tokens less
+        sortedSims[i].contribution = Math.max(0, Math.min(endowment, targetContrib));
+      }
+      
+      adjustedContributions.push(...sortedSims);
     } else {
-      // 15% rounds: can be similar or higher (for variety)
-      adjustment = (focalUserContribution - simAvg) * 0.5;
+      // 15% rounds: can be anywhere (for variety)
+      contributions.forEach(c => {
+        adjustedContributions.push({
+          ...c,
+          contribution: Math.max(0, Math.min(endowment, c.contribution))
+        });
+      });
     }
   } else {
-    // 85% rounds: focal user higher than average
+    // 85% rounds: focal user should be in top 3 (ranks 1, 2, or 3 out of 6)
     if (!shouldBeLower || Math.random() < 0.85) {
-      // Make simulated members contribute less so focal user is higher
-      const targetAvg = Math.max(0, focalUserContribution - (endowment * 0.3)); // Simulated members contribute 30% less
-      adjustment = targetAvg - simAvg;
+      // Ensure user is in top 3 by making at least 3 simulated members contribute less
+      // Target: user should rank 1st, 2nd, or 3rd
+      const targetRank = 1 + Math.floor(Math.random() * 3); // Random rank 1, 2, or 3
+      const numMembersAboveUser = targetRank - 1; // Number of members that should rank above user (0, 1, or 2)
+      
+      // Create adjusted contributions array
+      const sortedSims = contributions.map(c => ({ ...c }));
+      
+      // Make numMembersAboveUser members contribute more (above user)
+      for (let i = 0; i < numMembersAboveUser; i++) {
+        const targetContrib = focalUserContribution + Math.round(1 + Math.random() * 3); // 1-4 tokens more
+        sortedSims[i].contribution = Math.max(0, Math.min(endowment, targetContrib));
+      }
+      
+      // Make remaining members contribute less (below user)
+      for (let i = numMembersAboveUser; i < sortedSims.length; i++) {
+        const targetContrib = focalUserContribution - Math.round(3 + Math.random() * 5); // 3-8 tokens less
+        sortedSims[i].contribution = Math.max(0, Math.min(endowment, targetContrib));
+      }
+      
+      adjustedContributions.push(...sortedSims);
     } else {
-      // 15% rounds: can be similar or lower (for variety)
-      adjustment = (focalUserContribution - simAvg) * 0.5;
+      // 15% rounds: can be anywhere (for variety)
+      contributions.forEach(c => {
+        adjustedContributions.push({
+          ...c,
+          contribution: Math.max(0, Math.min(endowment, c.contribution))
+        });
+      });
     }
   }
   
-  contributions.forEach(c => {
-    adjustedContributions.push({
-      ...c,
-      contribution: Math.max(0, Math.min(endowment, Math.round(c.contribution + adjustment)))
-    });
+  // Ensure all contributions are within bounds
+  adjustedContributions.forEach(c => {
+    c.contribution = Math.max(0, Math.min(endowment, Math.round(c.contribution)));
   });
   
   return adjustedContributions;
@@ -2253,14 +2348,26 @@ async function showSocialNorm() {
   
   if (contributions.length === 0) return;
   
-  // Calculate average
-  const avg = contributions.reduce((sum, c) => sum + c, 0) / contributions.length;
+  // Get social norm settings from admin (defaults based on team rank)
+  const settingsDoc = await db.collection('settings').doc('experiment').get();
+  const settings = settingsDoc.exists ? settingsDoc.data() : {};
   
-  // For social norm infoType, always show average and standard deviation
-  const variance = contributions.reduce((sum, c) => sum + Math.pow(c - avg, 2), 0) / contributions.length;
-  const stdDev = Math.sqrt(variance);
+  // Determine target average based on team rank condition
+  let targetAvg;
+  if (experimentConfig.teamContribution === 'high') {
+    targetAvg = settings.socialNormAverageHigh !== undefined ? parseFloat(settings.socialNormAverageHigh) : 16;
+  } else {
+    targetAvg = settings.socialNormAverageLow !== undefined ? parseFloat(settings.socialNormAverageLow) : 6;
+  }
   
-  // Display in social norm panel
+  // Add +/-2 variation
+  const variation = (Math.random() - 0.5) * 4; // -2 to +2
+  const avg = Math.max(0, Math.min(endowment, targetAvg + variation));
+  
+  // Calculate actual average from contributions (for display)
+  const actualAvg = contributions.reduce((sum, c) => sum + c, 0) / contributions.length;
+  
+  // Display in social norm panel - only show average (not std)
   const socialNormPanel = document.getElementById('socialNormPanel');
   const socialNormContent = document.getElementById('socialNormContent');
   
@@ -2268,13 +2375,7 @@ async function showSocialNorm() {
     let html = '<div class="social-norm-stats">';
     html += `<div class="social-norm-stat">
       <div class="social-norm-stat-label">Team Average</div>
-      <div class="social-norm-stat-value">${avg.toFixed(2)}</div>
-    </div>`;
-    
-    // Always show standard deviation for social norm infoType
-    html += `<div class="social-norm-stat">
-      <div class="social-norm-stat-label">Standard Deviation</div>
-      <div class="social-norm-stat-value">${stdDev.toFixed(2)}</div>
+      <div class="social-norm-stat-value">${actualAvg.toFixed(2)}</div>
     </div>`;
     
     html += '</div>';
@@ -2292,11 +2393,7 @@ async function showSocialNorm() {
       <div class="social-norm-stats">
         <div class="social-norm-stat">
           <div class="social-norm-stat-label">Team Average</div>
-          <div class="social-norm-stat-value">${avg.toFixed(2)}</div>
-        </div>
-        <div class="social-norm-stat">
-          <div class="social-norm-stat-label">Standard Deviation</div>
-          <div class="social-norm-stat-value">${stdDev.toFixed(2)}</div>
+          <div class="social-norm-stat-value">${actualAvg.toFixed(2)}</div>
         </div>
       </div>
     `;
