@@ -404,14 +404,44 @@ async function startExperiment() {
     const participantDoc = await db.collection('participants').doc(participantId).get();
     const data = participantDoc.data();
     
+    // Check for URL parameter for testing (works for both new and existing participants)
+    const urlParams = new URLSearchParams(window.location.search);
+    const cellParam = urlParams.get('cell');
+    let shouldUseUrlCell = false;
+    
+    if (cellParam) {
+      const requestedCell = parseInt(cellParam);
+      if (requestedCell >= 1 && requestedCell <= BETWEEN_SUBJECT_CELLS.length) {
+        shouldUseUrlCell = true;
+        console.log(`[TESTING] URL parameter cell=${requestedCell} detected`);
+      }
+    }
+    
     if (data) {
       currentRound = data.currentRound || 1;
       groupId = data.groupId || '';
       cumulativePayoff = data.cumulativePayoff || 0;
       uniqueParticipantId = data.uniqueParticipantId || generateUniqueId();
-      // Load experiment config from participant record
-      if (data.experimentConfig) {
-        experimentConfig = { ...experimentConfig, ...data.experimentConfig };
+      
+      // If URL parameter is provided, override the cell assignment for testing
+      if (shouldUseUrlCell) {
+        console.log(`[TESTING] Overriding existing cell assignment with URL parameter cell=${cellParam}`);
+        const cellAssignment = assignBetweenSubjectCell();
+        experimentConfig.betweenSubjectCell = cellAssignment.cellNumber;
+        experimentConfig.infoType = cellAssignment.infoType;
+        experimentConfig.focalUserContributionLevel = cellAssignment.focalUserContributionLevel;
+        
+        // Update participant record with new cell assignment
+        await db.collection('participants').doc(participantId).update({
+          'experimentConfig.betweenSubjectCell': cellAssignment.cellNumber,
+          'experimentConfig.infoType': cellAssignment.infoType,
+          'experimentConfig.focalUserContributionLevel': cellAssignment.focalUserContributionLevel
+        });
+      } else {
+        // Load experiment config from participant record
+        if (data.experimentConfig) {
+          experimentConfig = { ...experimentConfig, ...data.experimentConfig };
+        }
       }
       
       if (currentRound > totalRounds) {
@@ -451,9 +481,6 @@ async function startExperiment() {
       });
       
       // Track cell assignment for balance
-      const urlParams = new URLSearchParams(window.location.search);
-      const cellParam = urlParams.get('cell');
-      
       await db.collection('cellAssignments').add({
         participantId,
         uniqueParticipantId,
@@ -1516,15 +1543,19 @@ async function loadIndividualLeaderboardWithinTeam() {
   `;
   leaderboardContent.appendChild(section);
   
-  // Get all contributions for this group
+  // Get all contributions for this group - only current user and simulated members
   const contributionsSnapshot = await db.collection('contributions')
     .where('groupId', '==', groupId)
     .get();
   
   const memberTotals = {};
   contributionsSnapshot.forEach(doc => {
-    const pid = doc.data().participantId;
-    memberTotals[pid] = (memberTotals[pid] || 0) + doc.data().contribution;
+    const data = doc.data();
+    const pid = data.participantId;
+    // Only include current user or simulated members (isSimulated flag or SIM_ prefix)
+    if (pid === participantId || data.isSimulated === true || pid.startsWith('SIM_')) {
+      memberTotals[pid] = (memberTotals[pid] || 0) + data.contribution;
+    }
   });
   
   // Sort by total
@@ -1544,10 +1575,13 @@ async function loadIndividualLeaderboardWithinTeam() {
     if (pid === participantId) {
       memberName = 'You';
     } else if (pid.startsWith('SIM_')) {
-      const memberNum = pid.split('_')[2] || '1';
+      // Extract member number from SIM_groupId_memberNum format
+      const parts = pid.split('_');
+      const memberNum = parts.length > 2 ? parts[2] : '1';
       memberName = `Team Member ${memberNum}`;
     } else {
-      memberName = pid;
+      // Fallback for simulated members without SIM_ prefix
+      memberName = `Team Member ${pid}`;
     }
     row.insertCell(1).textContent = memberName;
     row.insertCell(2).textContent = total;
@@ -1581,16 +1615,37 @@ async function loadIndividualLeaderboardAcrossTeams() {
   `;
   leaderboardContent.appendChild(section);
   
-  // Get all participants and their total contributions (excluding simulated)
-  const participantsSnapshot = await db.collection('participants').get();
-  const playerTotals = [];
+  // Get contributions for current user and simulated members only
+  // Get current user's total from participants collection
+  const currentUserDoc = await db.collection('participants').doc(participantId).get();
+  const currentUserTotal = currentUserDoc.exists ? (currentUserDoc.data().totalContribution || 0) : 0;
   
-  participantsSnapshot.forEach(doc => {
+  // Get simulated members' contributions from contributions collection
+  const contributionsSnapshot = await db.collection('contributions')
+    .where('groupId', '==', groupId)
+    .get();
+  
+  const playerTotals = [
+    { id: participantId, total: currentUserTotal, isSimulated: false }
+  ];
+  
+  contributionsSnapshot.forEach(doc => {
     const data = doc.data();
-    playerTotals.push({
-      id: data.participantId,
-      total: data.totalContribution || 0
-    });
+    const pid = data.participantId;
+    // Only include simulated members (isSimulated flag or SIM_ prefix)
+    if ((data.isSimulated === true || pid.startsWith('SIM_')) && pid !== participantId) {
+      // Check if we already have this simulated member
+      const existingIndex = playerTotals.findIndex(p => p.id === pid);
+      if (existingIndex >= 0) {
+        playerTotals[existingIndex].total += data.contribution;
+      } else {
+        playerTotals.push({
+          id: pid,
+          total: data.contribution,
+          isSimulated: true
+        });
+      }
+    }
   });
   
   // Sort by total
@@ -1602,7 +1657,20 @@ async function loadIndividualLeaderboardAcrossTeams() {
   playerTotals.slice(0, 20).forEach((player, index) => {
     const row = tbody.insertRow();
     row.insertCell(0).textContent = index + 1;
-    row.insertCell(1).textContent = player.id;
+    
+    let displayName;
+    if (player.id === participantId) {
+      displayName = 'You';
+    } else if (player.id.startsWith('SIM_')) {
+      // Extract member number from SIM_groupId_memberNum format
+      const parts = player.id.split('_');
+      const memberNum = parts.length > 2 ? parts[2] : '1';
+      displayName = `Team Member ${memberNum}`;
+    } else {
+      displayName = `Team Member ${player.id}`;
+    }
+    
+    row.insertCell(1).textContent = displayName;
     row.insertCell(2).textContent = player.total;
     if (player.id === participantId) {
       row.style.backgroundColor = '#e3f2fd';
