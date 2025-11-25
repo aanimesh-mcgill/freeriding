@@ -29,10 +29,29 @@ let timerInterval = null;
 let timeRemaining = 0;
 let cumulativePayoff = 0;
 
-// Treatment Conditions (randomized per participant)
-let showTeamLeaderboard = false;
-let showIndividualLeaderboard = false;
-let showContributionComparison = false;
+// Experiment Configuration (from admin settings)
+let experimentConfig = {
+  // Info Display Timing
+  infoDisplayTiming: 'eachRound', // 'eachRound' or 'endOnly'
+  
+  // What Info is Displayed
+  showTeamLeaderboard: false,
+  showIndividualLeaderboardWithinTeam: false,
+  showIndividualLeaderboardAcrossTeams: false,
+  
+  // Leaderboard Stability
+  leaderboardStability: 'stable', // 'stable' or 'dynamic'
+  
+  // Social Norm Display
+  socialNormDisplay: 'none', // 'avgAndStdDev', 'avgOnly', 'none'
+  
+  // Focal User Condition
+  focalUserCondition: 'random', // 'freeRider' or 'random'
+  
+  // Simulated Team Members
+  simulatedTeamSize: 3, // Number of simulated team members (total group size = 4)
+  simulatedTeamContributions: [] // Will be generated based on condition
+};
 
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', () => {
@@ -40,7 +59,22 @@ document.addEventListener('DOMContentLoaded', () => {
   loadExperimentSettings();
 });
 
+function proceedToWelcome() {
+  document.getElementById('consentScreen').classList.remove('active');
+  document.getElementById('welcomeScreen').classList.add('active');
+}
+
 function initializeEventListeners() {
+  // Consent checkbox and button
+  const consentCheckbox = document.getElementById('consentCheckbox');
+  const consentBtn = document.getElementById('consentBtn');
+  if (consentCheckbox && consentBtn) {
+    consentCheckbox.addEventListener('change', (e) => {
+      consentBtn.disabled = !e.target.checked;
+    });
+    consentBtn.addEventListener('click', proceedToWelcome);
+  }
+  
   // Start button
   document.getElementById('startBtn').addEventListener('click', startExperiment);
   
@@ -69,6 +103,31 @@ function initializeEventListeners() {
       startExperiment();
     }
   });
+  
+  // Tab switching
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const tabName = e.target.dataset.tab;
+      switchTab(tabName);
+    });
+  });
+}
+
+function switchTab(tabName) {
+  // Update tab buttons
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.tab === tabName);
+  });
+  
+  // Update tab content
+  document.querySelectorAll('.tab-content').forEach(content => {
+    content.classList.toggle('active', content.id === `${tabName}Tab`);
+  });
+  
+  // Load leaderboard if switching to leaderboard tab
+  if (tabName === 'leaderboard') {
+    loadLeaderboards();
+  }
 }
 
 async function loadExperimentSettings() {
@@ -82,6 +141,16 @@ async function loadExperimentSettings() {
       endowment = settings.endowment || 20;
       multiplier = settings.multiplier || 1.6;
       resultsDelay = settings.resultsDelay || 3;
+      
+      // Load experiment configuration
+      experimentConfig.infoDisplayTiming = settings.infoDisplayTiming || 'eachRound';
+      experimentConfig.focalUserCondition = settings.focalUserCondition || 'random';
+      experimentConfig.leaderboardStability = settings.leaderboardStability || 'stable';
+      experimentConfig.socialNormDisplay = settings.socialNormDisplay || 'none';
+      experimentConfig.showTeamLeaderboard = settings.showTeamLeaderboard || false;
+      experimentConfig.showIndividualLeaderboardWithinTeam = settings.showIndividualLeaderboardWithinTeam || false;
+      experimentConfig.showIndividualLeaderboardAcrossTeams = settings.showIndividualLeaderboardAcrossTeams || false;
+      experimentConfig.simulatedTeamSize = groupSize - 1; // Total group size minus the focal user
       
       document.getElementById('totalRounds').textContent = totalRounds;
     }
@@ -118,24 +187,21 @@ async function startExperiment() {
         return;
       }
     } else {
-      // New participant - randomize treatments
-      showTeamLeaderboard = Math.random() < 0.5;
-      showIndividualLeaderboard = Math.random() < 0.5;
-      showContributionComparison = Math.random() < 0.5;
-      
-      // Assign to group
+      // New participant - use experiment config from settings
+      // Assign to group (same group for all rounds)
       groupId = await assignToGroup(participantId);
       
-      // Create participant record
+      // Generate simulated team member contributions for all rounds
+      await generateSimulatedTeamContributions(groupId);
+      
+      // Create participant record with experiment config
       await db.collection('participants').doc(participantId).set({
         participantId,
         groupId,
         currentRound: 1,
         totalContribution: 0,
         cumulativePayoff: 0,
-        showTeamLeaderboard,
-        showIndividualLeaderboard,
-        showContributionComparison,
+        experimentConfig: experimentConfig,
         createdAt: firebase.firestore.FieldValue.serverTimestamp(),
         status: 'active'
       });
@@ -191,6 +257,111 @@ async function assignToGroup(pid) {
   }
   
   return groupId;
+}
+
+// Generate simulated team member contributions for all rounds
+async function generateSimulatedTeamContributions(groupId) {
+  const simulatedMembers = [];
+  const numSimulated = experimentConfig.simulatedTeamSize;
+  
+  // Create simulated member IDs
+  for (let i = 1; i <= numSimulated; i++) {
+    simulatedMembers.push(`SIM_${groupId}_${i}`);
+  }
+  
+  // Generate contributions for each round based on condition
+  for (let round = 1; round <= totalRounds; round++) {
+    const contributions = [];
+    
+    // Base contribution levels for simulated members (they contribute moderately)
+    const baseContributions = [];
+    for (let i = 0; i < numSimulated; i++) {
+      // Simulated members contribute between 8-15 tokens on average
+      let contribution;
+      if (experimentConfig.leaderboardStability === 'stable') {
+        // Stable: higher contributors stay high, lower stay low
+        const rank = i / (numSimulated - 1); // 0 to 1
+        contribution = Math.round(7 + rank * 8); // 7 to 15
+      } else {
+        // Dynamic: contributions vary more
+        contribution = Math.round(8 + Math.random() * 7); // 8 to 15
+      }
+      baseContributions.push(contribution);
+    }
+    
+    // Adjust based on focal user condition (will be set when focal user submits)
+    // For now, just store base contributions
+    for (let i = 0; i < numSimulated; i++) {
+      contributions.push({
+        memberId: simulatedMembers[i],
+        contribution: baseContributions[i],
+        round: round
+      });
+    }
+    
+    // Store simulated contributions (will be adjusted when focal user submits)
+    await db.collection('simulatedContributions').doc(`${groupId}_${round}`).set({
+      groupId,
+      round,
+      contributions: contributions,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+  }
+  
+  // Store simulated members in group
+  await db.collection('groups').doc(groupId).update({
+    simulatedMembers: simulatedMembers
+  });
+}
+
+// Get simulated team contributions for current round, adjusted based on focal user's contribution
+async function getSimulatedTeamContributions(focalUserContribution) {
+  const simDoc = await db.collection('simulatedContributions').doc(`${groupId}_${currentRound}`).get();
+  if (!simDoc.data()) return [];
+  
+  const contributions = simDoc.data().contributions || [];
+  const adjustedContributions = [];
+  
+  // Calculate average of simulated members
+  const simAvg = contributions.reduce((sum, c) => sum + c.contribution, 0) / contributions.length;
+  
+  // Adjust based on focal user condition
+  if (experimentConfig.focalUserCondition === 'freeRider') {
+    // Focal user is always much lower - make simulated members contribute more
+    const targetAvg = focalUserContribution + (endowment * 0.4); // Simulated members contribute 40% more on average
+    const adjustment = targetAvg - simAvg;
+    
+    contributions.forEach(c => {
+      adjustedContributions.push({
+        ...c,
+        contribution: Math.max(0, Math.min(endowment, Math.round(c.contribution + adjustment)))
+      });
+    });
+  } else {
+    // Random condition - sometimes higher, sometimes lower, sometimes same
+    const randomFactor = Math.random();
+    let adjustment;
+    
+    if (randomFactor < 0.33) {
+      // Focal user higher than average
+      adjustment = (focalUserContribution - simAvg) * 0.8; // Simulated members slightly lower
+    } else if (randomFactor < 0.66) {
+      // Focal user lower than average
+      adjustment = (focalUserContribution - simAvg) * 0.8; // Simulated members slightly higher
+    } else {
+      // Focal user similar to average
+      adjustment = 0; // Keep similar
+    }
+    
+    contributions.forEach(c => {
+      adjustedContributions.push({
+        ...c,
+        contribution: Math.max(0, Math.min(endowment, Math.round(c.contribution + adjustment)))
+      });
+    });
+  }
+  
+  return adjustedContributions;
 }
 
 async function loadRound() {
@@ -353,8 +524,8 @@ async function submitContribution() {
       clearInterval(timerInterval);
     }
     
-    // Check if round is complete
-    await checkRoundCompletion();
+    // Get simulated team contributions and complete round immediately
+    await completeRoundWithSimulatedMembers();
     
   } catch (error) {
     console.error('Error submitting contribution:', error);
@@ -372,48 +543,36 @@ async function autoSubmit() {
   await submitContribution();
 }
 
-async function checkRoundCompletion() {
-  // Check if all group members have submitted
-  const groupDoc = await db.collection('groups').doc(groupId).get();
-  const groupData = groupDoc.data();
-  if (!groupData) return;
+// Complete round immediately with simulated team members
+async function completeRoundWithSimulatedMembers() {
+  // Get simulated team contributions adjusted to focal user's contribution
+  const simulatedContributions = await getSimulatedTeamContributions(contribution);
   
-  const members = groupDoc.data().members || [];
-  const contributionsSnapshot = await db.collection('contributions')
-    .where('groupId', '==', groupId)
-    .where('round', '==', currentRound)
-    .get();
-  
-  const submittedParticipants = new Set();
-  contributionsSnapshot.forEach(doc => {
-    submittedParticipants.add(doc.data().participantId);
-  });
-  
-  // Check if all members have submitted
-  if (submittedParticipants.size >= members.length) {
-    // Calculate payoffs for all members
-    await calculateRoundPayoffs();
-    
-    // Show results (delay is handled inside showRoundResults)
-    await showRoundResults();
-  } else {
-    // Set up listener for round completion
-    const unsubscribe = db.collection('contributions')
-      .where('groupId', '==', groupId)
-      .where('round', '==', currentRound)
-      .onSnapshot(async (snapshot) => {
-        const submittedSet = new Set();
-        snapshot.forEach(doc => {
-          submittedSet.add(doc.data().participantId);
-        });
-        
-        if (submittedSet.size >= members.length) {
-          unsubscribe();
-          await calculateRoundPayoffs();
-          await showRoundResults();
-        }
-      });
+  // Save simulated contributions to Firestore
+  for (const simContrib of simulatedContributions) {
+    await db.collection('contributions').add({
+      participantId: simContrib.memberId,
+      groupId,
+      round: currentRound,
+      contribution: simContrib.contribution,
+      endowment,
+      isSimulated: true,
+      timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+      submittedAt: Date.now()
+    });
   }
+  
+  // Calculate payoffs immediately
+  await calculateRoundPayoffs();
+  
+  // Show results (delay is handled inside showRoundResults)
+  await showRoundResults();
+}
+
+async function checkRoundCompletion() {
+  // This function is kept for backward compatibility but not used with simulated members
+  // With simulated members, we complete immediately in completeRoundWithSimulatedMembers
+  await completeRoundWithSimulatedMembers();
 }
 
 async function calculateRoundPayoffs() {

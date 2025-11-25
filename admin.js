@@ -42,6 +42,17 @@ async function loadExperimentSettings() {
       document.getElementById('endowmentSetting').value = settings.endowment || 20;
       document.getElementById('multiplierSetting').value = settings.multiplier || 1.6;
       document.getElementById('resultsDelaySetting').value = settings.resultsDelay || 3;
+      
+      // Experiment factors
+      document.getElementById('infoDisplayTimingSetting').value = settings.infoDisplayTiming || 'eachRound';
+      document.getElementById('focalUserConditionSetting').value = settings.focalUserCondition || 'random';
+      document.getElementById('leaderboardStabilitySetting').value = settings.leaderboardStability || 'stable';
+      document.getElementById('socialNormDisplaySetting').value = settings.socialNormDisplay || 'none';
+      
+      // Information display options
+      document.getElementById('showTeamLeaderboardSetting').checked = settings.showTeamLeaderboard || false;
+      document.getElementById('showIndividualLeaderboardWithinTeamSetting').checked = settings.showIndividualLeaderboardWithinTeam || false;
+      document.getElementById('showIndividualLeaderboardAcrossTeamsSetting').checked = settings.showIndividualLeaderboardAcrossTeams || false;
     }
   } catch (error) {
     console.error('Error loading settings:', error);
@@ -56,6 +67,18 @@ async function saveSettings() {
     endowment: parseInt(document.getElementById('endowmentSetting').value),
     multiplier: parseFloat(document.getElementById('multiplierSetting').value),
     resultsDelay: parseInt(document.getElementById('resultsDelaySetting').value),
+    
+    // Experiment factors
+    infoDisplayTiming: document.getElementById('infoDisplayTimingSetting').value,
+    focalUserCondition: document.getElementById('focalUserConditionSetting').value,
+    leaderboardStability: document.getElementById('leaderboardStabilitySetting').value,
+    socialNormDisplay: document.getElementById('socialNormDisplaySetting').value,
+    
+    // Information display options
+    showTeamLeaderboard: document.getElementById('showTeamLeaderboardSetting').checked,
+    showIndividualLeaderboardWithinTeam: document.getElementById('showIndividualLeaderboardWithinTeamSetting').checked,
+    showIndividualLeaderboardAcrossTeams: document.getElementById('showIndividualLeaderboardAcrossTeamsSetting').checked,
+    
     updatedAt: firebase.firestore.FieldValue.serverTimestamp()
   };
   

@@ -50,6 +50,76 @@
             <small style="display: block; color: #666; margin-top: 5px;">Time to wait before showing results after submission</small>
           </div>
         </div>
+        
+        <h3 style="margin-top: 30px; color: #667eea;">Experiment Factors</h3>
+        
+        <div class="settings-grid">
+          <div class="setting-item">
+            <label>Info Display Timing:</label>
+            <select id="infoDisplayTimingSetting">
+              <option value="eachRound">Each Round</option>
+              <option value="endOnly">End Only</option>
+            </select>
+            <small style="display: block; color: #666; margin-top: 5px;">When to show information/leaderboards</small>
+          </div>
+          
+          <div class="setting-item">
+            <label>Focal User Condition:</label>
+            <select id="focalUserConditionSetting">
+              <option value="freeRider">Free Rider (always lower)</option>
+              <option value="random">Random (varies)</option>
+            </select>
+            <small style="display: block; color: #666; margin-top: 5px;">How focal user compares to team</small>
+          </div>
+          
+          <div class="setting-item">
+            <label>Leaderboard Stability:</label>
+            <select id="leaderboardStabilitySetting">
+              <option value="stable">Stable (ranks stay same)</option>
+              <option value="dynamic">Dynamic (ranks change)</option>
+            </select>
+            <small style="display: block; color: #666; margin-top: 5px;">How leaderboard ranks change</small>
+          </div>
+          
+          <div class="setting-item">
+            <label>Social Norm Display:</label>
+            <select id="socialNormDisplaySetting">
+              <option value="none">None</option>
+              <option value="avgOnly">Average Only</option>
+              <option value="avgAndStdDev">Average + Std Deviation</option>
+            </select>
+            <small style="display: block; color: #666; margin-top: 5px;">What social norm info to show</small>
+          </div>
+        </div>
+        
+        <h3 style="margin-top: 30px; color: #667eea;">Information Display Options</h3>
+        
+        <div class="settings-grid">
+          <div class="setting-item">
+            <label>
+              <input type="checkbox" id="showTeamLeaderboardSetting">
+              Show Team Leaderboard
+            </label>
+            <small style="display: block; color: #666; margin-top: 5px;">Display team rankings</small>
+          </div>
+          
+          <div class="setting-item">
+            <label>
+              <input type="checkbox" id="showIndividualLeaderboardWithinTeamSetting">
+              Show Individual Leaderboard (Within Team)
+            </label>
+            <small style="display: block; color: #666; margin-top: 5px;">Rankings within participant's team</small>
+          </div>
+          
+          <div class="setting-item">
+            <label>
+              <input type="checkbox" id="showIndividualLeaderboardAcrossTeamsSetting">
+              Show Individual Leaderboard (Across All Teams)
+            </label>
+            <small style="display: block; color: #666; margin-top: 5px;">Rankings across all teams</small>
+          </div>
+        </div>
+        
         <button id="saveSettingsBtn" class="btn btn-primary">Save Settings</button>
       </section>
 
