@@ -1692,6 +1692,7 @@ async function loadTeamLeaderboardForTab() {
     const gid = groupDoc.id;
     if (gid === groupId) continue; // Skip focal team, already calculated
     
+    // Get saved contributions from Firestore
     const contributionsSnapshot = await db.collection('contributions')
       .where('groupId', '==', gid)
       .get();
@@ -1705,6 +1706,50 @@ async function loadTeamLeaderboardForTab() {
         roundTotal += contrib;
       }
     });
+    
+    // If no contributions for current round, get simulated contributions and add realistic variation
+    if (roundTotal === 0 && currentRound <= totalRounds) {
+      const simDoc = await db.collection('simulatedContributions').doc(`${gid}_${currentRound}`).get();
+      if (simDoc.exists) {
+        const simContributions = simDoc.data().contributions || [];
+        // Calculate team total from simulated contributions with some noise
+        let teamRoundTotal = 0;
+        simContributions.forEach(sim => {
+          // Add small random noise (±2 tokens) to make it more realistic
+          const noise = Math.round((Math.random() - 0.5) * 4); // -2 to +2
+          const contribWithNoise = Math.max(0, Math.min(endowment, sim.contribution + noise));
+          teamRoundTotal += contribWithNoise;
+        });
+        roundTotal = teamRoundTotal;
+        // Also add to cumulative if this is the first time we're calculating
+        if (total === 0) {
+          // Calculate cumulative from all rounds' simulated contributions
+          for (let r = 1; r <= currentRound; r++) {
+            const roundSimDoc = await db.collection('simulatedContributions').doc(`${gid}_${r}`).get();
+            if (roundSimDoc.exists) {
+              const roundSimContributions = roundSimDoc.data().contributions || [];
+              roundSimContributions.forEach(sim => {
+                const noise = Math.round((Math.random() - 0.5) * 4);
+                const contribWithNoise = Math.max(0, Math.min(endowment, sim.contribution + noise));
+                total += contribWithNoise;
+              });
+            }
+          }
+        } else {
+          total += roundTotal; // Add current round to cumulative
+        }
+      } else {
+        // If no simulated contributions exist, generate realistic values
+        // Each team has 6 members, average contribution around 10-12 tokens per member
+        const baseTeamTotal = Math.round((10 + Math.random() * 4) * 6); // 60-84 tokens per team
+        const noise = Math.round((Math.random() - 0.5) * 20); // ±10 tokens variation
+        roundTotal = Math.max(30, Math.min(120, baseTeamTotal + noise));
+        total += roundTotal;
+      }
+    } else if (roundTotal > 0) {
+      // If we have contributions, add them to cumulative
+      total += roundTotal;
+    }
     
     groupTotals[gid] = total;
     groupRoundTotals[gid] = roundTotal;
