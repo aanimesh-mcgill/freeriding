@@ -1540,7 +1540,8 @@ async function loadTeamLeaderboardForTab() {
           <tr>
             <th>Rank</th>
             <th>Team</th>
-            <th>Total Contribution</th>
+            <th>Cumulative</th>
+            <th>This Round</th>
           </tr>
         </thead>
         <tbody id="teamLeaderboardTabBody">
@@ -1552,18 +1553,24 @@ async function loadTeamLeaderboardForTab() {
   
   // Get all groups and their total contributions
   const groupsSnapshot = await db.collection('groups').get();
-  const groupTotals = {};
+  const groupTotals = {}; // Cumulative totals
+  const groupRoundTotals = {}; // Current round totals
   
-  // Calculate focal team's total
+  // Calculate focal team's cumulative and current round totals
   let focalTeamTotal = 0;
+  let focalTeamRoundTotal = 0;
   const focalContributions = await db.collection('contributions')
     .where('groupId', '==', groupId)
     .get();
   focalContributions.forEach(doc => {
-    focalTeamTotal += doc.data().contribution;
+    const contrib = doc.data().contribution;
+    focalTeamTotal += contrib;
+    if (doc.data().round === currentRound) {
+      focalTeamRoundTotal += contrib;
+    }
   });
   
-  // Get other teams' totals
+  // Get other teams' cumulative and current round totals
   for (const groupDoc of groupsSnapshot.docs) {
     const gid = groupDoc.id;
     if (gid === groupId) continue; // Skip focal team, already calculated
@@ -1573,11 +1580,17 @@ async function loadTeamLeaderboardForTab() {
       .get();
     
     let total = 0;
+    let roundTotal = 0;
     contributionsSnapshot.forEach(doc => {
-      total += doc.data().contribution;
+      const contrib = doc.data().contribution;
+      total += contrib;
+      if (doc.data().round === currentRound) {
+        roundTotal += contrib;
+      }
     });
     
     groupTotals[gid] = total;
+    groupRoundTotals[gid] = roundTotal;
   }
   
   // Determine target position for focal team based on teamContribution (high = top 25%, low = bottom 25%)
@@ -1717,7 +1730,8 @@ async function loadIndividualLeaderboardWithinTeam() {
           <tr>
             <th>Rank</th>
             <th>Member</th>
-            <th>Total Contribution</th>
+            <th>Cumulative</th>
+            <th>This Round</th>
           </tr>
         </thead>
         <tbody id="individualWithinTeamBody">
@@ -1727,44 +1741,65 @@ async function loadIndividualLeaderboardWithinTeam() {
   `;
   leaderboardContent.appendChild(section);
   
-  // Initialize member totals - ensure all 6 members are included
-  const memberTotals = {};
+  // Initialize member data - ensure all 6 members are included
+  const memberData = new Map();
   
-  // Add focal user (You) - get from participants collection
+  // Add focal user (You) - get cumulative from participants collection
   const participantDoc = await db.collection('participants').doc(participantId).get();
-  if (participantDoc.exists) {
-    memberTotals[participantId] = participantDoc.data().totalContribution || 0;
-  } else {
-    memberTotals[participantId] = 0;
-  }
+  const userCumulative = participantDoc.exists ? (participantDoc.data().totalContribution || 0) : 0;
+  memberData.set(participantId, {
+    id: participantId,
+    cumulative: userCumulative,
+    thisRound: 0
+  });
   
   // Add all 5 simulated members (Team Member 1-5)
   for (let i = 1; i <= 5; i++) {
     const simId = `SIM_${groupId}_${i}`;
-    memberTotals[simId] = 0; // Initialize to 0
+    memberData.set(simId, {
+      id: simId,
+      cumulative: 0,
+      thisRound: 0
+    });
   }
   
   // Get all contributions for this group - only current user and simulated members
-  const contributionsSnapshot = await db.collection('contributions')
+  const allContributionsSnapshot = await db.collection('contributions')
     .where('groupId', '==', groupId)
     .get();
   
-  contributionsSnapshot.forEach(doc => {
+  // Get current round contributions
+  const currentRoundContributionsSnapshot = await db.collection('contributions')
+    .where('groupId', '==', groupId)
+    .where('round', '==', currentRound)
+    .get();
+  
+  // Calculate cumulative totals
+  allContributionsSnapshot.forEach(doc => {
     const data = doc.data();
     const pid = data.participantId;
     // Only include current user or simulated members (isSimulated flag or SIM_ prefix)
     if (pid === participantId || data.isSimulated === true || pid.startsWith('SIM_')) {
-      // Accumulate contributions across all rounds
-      if (!memberTotals[pid]) {
-        memberTotals[pid] = 0;
+      if (memberData.has(pid)) {
+        memberData.get(pid).cumulative += data.contribution;
       }
-      memberTotals[pid] += data.contribution;
     }
   });
   
-  // Sort by total
-  const sorted = Object.entries(memberTotals)
-    .sort((a, b) => b[1] - a[1]);
+  // Calculate current round contributions
+  currentRoundContributionsSnapshot.forEach(doc => {
+    const data = doc.data();
+    const pid = data.participantId;
+    if (pid === participantId || data.isSimulated === true || pid.startsWith('SIM_')) {
+      if (memberData.has(pid)) {
+        memberData.get(pid).thisRound += data.contribution;
+      }
+    }
+  });
+  
+  // Sort by cumulative (for ranking)
+  const sorted = Array.from(memberData.values())
+    .sort((a, b) => b.cumulative - a.cumulative);
   
   // Apply individual LB stability: maintain ranks at 85% or 25% level
   // The actual rank maintenance is handled in getSimulatedTeamContributions
@@ -1772,24 +1807,25 @@ async function loadIndividualLeaderboardWithinTeam() {
   const tbody = document.getElementById('individualWithinTeamBody');
   tbody.innerHTML = '';
   
-  sorted.forEach(([pid, total], index) => {
+  sorted.forEach((member, index) => {
     const row = tbody.insertRow();
     row.insertCell(0).textContent = index + 1;
     let memberName;
-    if (pid === participantId) {
+    if (member.id === participantId) {
       memberName = 'You';
-    } else if (pid.startsWith('SIM_')) {
+    } else if (member.id.startsWith('SIM_')) {
       // Extract member number from SIM_groupId_memberNum format
-      const parts = pid.split('_');
+      const parts = member.id.split('_');
       const memberNum = parts.length > 2 ? parts[2] : '1';
       memberName = `Team Member ${memberNum}`;
     } else {
       // Fallback for simulated members without SIM_ prefix
-      memberName = `Team Member ${pid}`;
+      memberName = `Team Member ${member.id}`;
     }
     row.insertCell(1).textContent = memberName;
-    row.insertCell(2).textContent = total;
-    if (pid === participantId) {
+    row.insertCell(2).textContent = member.cumulative;
+    row.insertCell(3).textContent = member.thisRound;
+    if (member.id === participantId) {
       row.style.backgroundColor = '#e3f2fd';
       row.style.fontWeight = 'bold';
     }
@@ -1809,7 +1845,8 @@ async function loadIndividualLeaderboardAcrossTeams() {
           <tr>
             <th>Rank</th>
             <th>Participant</th>
-            <th>Total Contribution</th>
+            <th>Cumulative</th>
+            <th>This Round</th>
           </tr>
         </thead>
         <tbody id="individualAcrossTeamsBody">
@@ -1819,18 +1856,13 @@ async function loadIndividualLeaderboardAcrossTeams() {
   `;
   leaderboardContent.appendChild(section);
   
-  // Get contributions for CURRENT ROUND ONLY (not cumulative)
-  // Get current user's contribution for this round
-  const currentUserContribution = await db.collection('contributions')
-    .where('participantId', '==', participantId)
-    .where('round', '==', currentRound)
-    .limit(1)
+  // Get ALL contributions for cumulative totals (for ranking)
+  const allContributionsSnapshot = await db.collection('contributions')
+    .where('groupId', '==', groupId)
     .get();
   
-  const currentUserRoundTotal = currentUserContribution.empty ? 0 : currentUserContribution.docs[0].data().contribution;
-  
-  // Get simulated members' contributions for CURRENT ROUND ONLY
-  const contributionsSnapshot = await db.collection('contributions')
+  // Get current round contributions
+  const currentRoundContributionsSnapshot = await db.collection('contributions')
     .where('groupId', '==', groupId)
     .where('round', '==', currentRound)
     .get();
@@ -1852,39 +1884,56 @@ async function loadIndividualLeaderboardAcrossTeams() {
     }
   });
   
-  const playerTotals = [
-    { id: participantId, total: currentUserRoundTotal, isSimulated: false, groupId: groupId }
-  ];
+  // Calculate cumulative totals and current round contributions
+  const playerData = new Map();
   
-  contributionsSnapshot.forEach(doc => {
+  // Initialize with current user
+  const currentUserDoc = await db.collection('participants').doc(participantId).get();
+  const currentUserCumulative = currentUserDoc.exists ? (currentUserDoc.data().totalContribution || 0) : 0;
+  const currentUserRound = currentRoundContributionsSnapshot.docs.find(d => d.data().participantId === participantId);
+  const currentUserRoundContribution = currentUserRound ? currentUserRound.data().contribution : 0;
+  
+  playerData.set(participantId, {
+    id: participantId,
+    cumulative: currentUserCumulative,
+    thisRound: currentUserRoundContribution,
+    isSimulated: false,
+    groupId: groupId
+  });
+  
+  // Process all contributions to get cumulative totals
+  allContributionsSnapshot.forEach(doc => {
     const data = doc.data();
     const pid = data.participantId;
-    // Only include simulated members (isSimulated flag or SIM_ prefix) for current round
+    // Only include simulated members (isSimulated flag or SIM_ prefix)
     if ((data.isSimulated === true || pid.startsWith('SIM_')) && pid !== participantId) {
       // Extract groupId from SIM_groupId_memberNum format
       const parts = pid.split('_');
       const simGroupId = parts.length > 1 ? parts[1] : groupId;
       const memberNum = parts.length > 2 ? parts[2] : '1';
       
-      // Check if we already have this simulated member
-      const existingIndex = playerTotals.findIndex(p => p.id === pid);
-      if (existingIndex >= 0) {
-        // Shouldn't happen for same round, but just in case
-        playerTotals[existingIndex].total += data.contribution;
-      } else {
-        playerTotals.push({
+      if (!playerData.has(pid)) {
+        playerData.set(pid, {
           id: pid,
-          total: data.contribution, // Current round contribution only
+          cumulative: 0,
+          thisRound: 0,
           isSimulated: true,
           groupId: simGroupId,
           memberNum: memberNum
         });
       }
+      playerData.get(pid).cumulative += data.contribution;
+      
+      // Add current round contribution
+      if (data.round === currentRound) {
+        playerData.get(pid).thisRound += data.contribution;
+      }
     }
   });
   
-  // Sort by total
-  playerTotals.sort((a, b) => b.total - a.total);
+  // Convert to array and sort by cumulative (for ranking)
+  const playerTotals = Array.from(playerData.values());
+  playerTotals.sort((a, b) => b.cumulative - a.cumulative);
   
   const tbody = document.getElementById('individualAcrossTeamsBody');
   tbody.innerHTML = '';
@@ -1905,7 +1954,8 @@ async function loadIndividualLeaderboardAcrossTeams() {
     }
     
     row.insertCell(1).textContent = displayName;
-    row.insertCell(2).textContent = player.total;
+    row.insertCell(2).textContent = player.cumulative;
+    row.insertCell(3).textContent = player.thisRound;
     if (player.id === participantId) {
       row.style.backgroundColor = '#e3f2fd';
       row.style.fontWeight = 'bold';
