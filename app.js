@@ -540,16 +540,30 @@ async function generateSimulatedTeamContributions(groupId) {
     const contributions = [];
     
     // Base contribution levels for simulated members (they contribute moderately)
+    // Individual LB stability affects how ranks are maintained across rounds
     const baseContributions = [];
     for (let i = 0; i < numSimulated; i++) {
       // Simulated members contribute between 8-15 tokens on average
       let contribution;
-      if (experimentConfig.leaderboardStability === 'stable') {
-        // Stable: higher contributors stay high, lower stay low
+      
+      // Get the within-subject factor for this round
+      let individualStability = 'high'; // default
+      if (experimentConfig.withinSubjectSequence && experimentConfig.withinSubjectSequence.length >= round) {
+        individualStability = experimentConfig.withinSubjectSequence[round - 1].individualLBStability;
+      }
+      
+      // High stability (85% maintain ranks): maintain relative positions
+      // Low stability (25% maintain ranks): allow more variation
+      const shouldMaintainRank = individualStability === 'high'
+        ? (round <= Math.floor(totalRounds * 0.85))
+        : (round <= Math.floor(totalRounds * 0.25));
+      
+      if (shouldMaintainRank && round > 1) {
+        // Maintain relative rank positions (high contributors stay high, low stay low)
         const rank = i / (numSimulated - 1); // 0 to 1
         contribution = Math.round(7 + rank * 8); // 7 to 15
       } else {
-        // Dynamic: contributions vary more
+        // Allow more variation in contributions
         contribution = Math.round(8 + Math.random() * 7); // 8 to 15
       }
       baseContributions.push(contribution);
@@ -896,15 +910,13 @@ async function calculateRoundPayoffs() {
       payoff,
       // Treatment information (only for real participants, not simulated)
       treatmentConditions: pid.startsWith('SIM_') ? null : {
-        infoDisplayTiming: experimentConfig.infoDisplayTiming,
-        focalUserCondition: experimentConfig.focalUserCondition,
-        leaderboardStability: experimentConfig.leaderboardStability,
-        socialNormDisplay: experimentConfig.socialNormDisplay,
-        focalMemberTeamRank: experimentConfig.focalMemberTeamRank,
-        teamLeaderboardRankingStability: experimentConfig.teamLeaderboardRankingStability,
-        showTeamLeaderboard: experimentConfig.showTeamLeaderboard,
-        showIndividualLeaderboardWithinTeam: experimentConfig.showIndividualLeaderboardWithinTeam,
-        showIndividualLeaderboardAcrossTeams: experimentConfig.showIndividualLeaderboardAcrossTeams
+        betweenSubjectCell: experimentConfig.betweenSubjectCell,
+        infoType: experimentConfig.infoType,
+        focalUserContributionLevel: experimentConfig.focalUserContributionLevel,
+        teamContribution: experimentConfig.teamContribution,
+        individualLBStability: experimentConfig.individualLBStability,
+        teamLBStability: experimentConfig.teamLBStability,
+        round: currentRound
       },
       timestamp: firebase.firestore.FieldValue.serverTimestamp()
     });
@@ -1098,30 +1110,36 @@ async function loadTeamLeaderboard() {
     groupTotals[gid] = total;
   }
   
-  // Determine target position for focal team (same logic as loadTeamLeaderboardForTab)
+  // Determine target position for focal team based on teamContribution (high = top 25%, low = bottom 25%)
   const allTeamTotals = Object.values(groupTotals);
   allTeamTotals.push(focalTeamTotal);
   allTeamTotals.sort((a, b) => b - a);
   
   let targetRank;
   const totalTeams = allTeamTotals.length;
+  const top25Percent = Math.max(1, Math.floor(totalTeams * 0.25));
+  const bottom25Percent = Math.max(1, Math.floor(totalTeams * 0.75));
   
-  if (experimentConfig.teamLeaderboardRankingStability === 'dynamic') {
-    const roundBasedRank = (currentRound % 3);
-    if (experimentConfig.focalMemberTeamRank === 'high') {
-      targetRank = roundBasedRank === 0 ? 1 : Math.floor(totalTeams * 0.3);
-    } else if (experimentConfig.focalMemberTeamRank === 'low') {
-      targetRank = roundBasedRank === 0 ? totalTeams : Math.floor(totalTeams * 0.7);
+  // Check if team LB stability should maintain ranks (high = 85% maintain, low = 25% maintain)
+  const shouldMaintainRank = experimentConfig.teamLBStability === 'high' 
+    ? (currentRound <= Math.floor(totalRounds * 0.85))
+    : (currentRound <= Math.floor(totalRounds * 0.25));
+  
+  if (shouldMaintainRank && currentRound > 1) {
+    // Maintain previous rank (85% or 25% of rounds depending on stability level)
+    if (experimentConfig.teamContribution === 'high') {
+      targetRank = top25Percent; // Top 25%
     } else {
-      targetRank = Math.floor(totalTeams * 0.5);
+      targetRank = bottom25Percent; // Bottom 25%
     }
   } else {
-    if (experimentConfig.focalMemberTeamRank === 'high') {
-      targetRank = 1;
-    } else if (experimentConfig.focalMemberTeamRank === 'low') {
-      targetRank = totalTeams;
+    // Allow rank to change (15% or 75% of rounds depending on stability level)
+    if (experimentConfig.teamContribution === 'high') {
+      // High condition: target top 25%
+      targetRank = Math.floor(Math.random() * top25Percent) + 1;
     } else {
-      targetRank = Math.floor(totalTeams * 0.5);
+      // Low condition: target bottom 25%
+      targetRank = bottom25Percent + Math.floor(Math.random() * (totalTeams - bottom25Percent));
     }
   }
   
@@ -1298,32 +1316,37 @@ async function loadTeamLeaderboardForTab() {
     groupTotals[gid] = total;
   }
   
-  // Determine target position for focal team
+  // Determine target position for focal team based on teamContribution (high = top 25%, low = bottom 25%)
   const allTeamTotals = Object.values(groupTotals);
   allTeamTotals.push(focalTeamTotal);
   allTeamTotals.sort((a, b) => b - a);
   
   let targetRank;
   const totalTeams = allTeamTotals.length;
+  const top25Percent = Math.max(1, Math.floor(totalTeams * 0.25));
+  const bottom25Percent = Math.max(1, Math.floor(totalTeams * 0.75));
   
-  if (experimentConfig.teamLeaderboardRankingStability === 'dynamic') {
-    // Dynamic: position changes each round
-    const roundBasedRank = (currentRound % 3); // Cycles through 0, 1, 2
-    if (experimentConfig.focalMemberTeamRank === 'high') {
-      targetRank = roundBasedRank === 0 ? 1 : Math.floor(totalTeams * 0.3);
-    } else if (experimentConfig.focalMemberTeamRank === 'low') {
-      targetRank = roundBasedRank === 0 ? totalTeams : Math.floor(totalTeams * 0.7);
+  // Check if team LB stability should maintain ranks (high = 85% maintain, low = 25% maintain)
+  const shouldMaintainRank = experimentConfig.teamLBStability === 'high' 
+    ? (currentRound <= Math.floor(totalRounds * 0.85))
+    : (currentRound <= Math.floor(totalRounds * 0.25));
+  
+  if (shouldMaintainRank && currentRound > 1) {
+    // Maintain previous rank (85% or 25% of rounds depending on stability level)
+    // For simplicity, use the teamContribution setting consistently
+    if (experimentConfig.teamContribution === 'high') {
+      targetRank = top25Percent; // Top 25%
     } else {
-      targetRank = Math.floor(totalTeams * 0.5);
+      targetRank = bottom25Percent; // Bottom 25%
     }
   } else {
-    // Stable: position stays same
-    if (experimentConfig.focalMemberTeamRank === 'high') {
-      targetRank = 1; // Top position
-    } else if (experimentConfig.focalMemberTeamRank === 'low') {
-      targetRank = totalTeams; // Bottom position
+    // Allow rank to change (15% or 75% of rounds depending on stability level)
+    if (experimentConfig.teamContribution === 'high') {
+      // High condition: target top 25%
+      targetRank = Math.floor(Math.random() * top25Percent) + 1;
     } else {
-      targetRank = Math.floor(totalTeams * 0.5); // Middle position
+      // Low condition: target bottom 25%
+      targetRank = bottom25Percent + Math.floor(Math.random() * (totalTeams - bottom25Percent));
     }
   }
   
@@ -1431,6 +1454,9 @@ async function loadIndividualLeaderboardWithinTeam() {
   const sorted = Object.entries(memberTotals)
     .sort((a, b) => b[1] - a[1]);
   
+  // Apply individual LB stability: maintain ranks at 85% or 25% level
+  // The actual rank maintenance is handled in getSimulatedTeamContributions
+  // Here we just display the sorted order
   const tbody = document.getElementById('individualWithinTeamBody');
   tbody.innerHTML = '';
   
@@ -1536,12 +1562,11 @@ async function showSocialNorm() {
       <div class="social-norm-stat-value">${avg.toFixed(2)}</div>
     </div>`;
     
-    if (experimentConfig.socialNormDisplay === 'avgAndStdDev') {
-      html += `<div class="social-norm-stat">
-        <div class="social-norm-stat-label">Standard Deviation</div>
-        <div class="social-norm-stat-value">${stdDev.toFixed(2)}</div>
-      </div>`;
-    }
+    // Always show standard deviation for social norm infoType
+    html += `<div class="social-norm-stat">
+      <div class="social-norm-stat-label">Standard Deviation</div>
+      <div class="social-norm-stat-value">${stdDev.toFixed(2)}</div>
+    </div>`;
     
     html += '</div>';
     socialNormContent.innerHTML = html;
@@ -1550,7 +1575,7 @@ async function showSocialNorm() {
   
   // Also show in leaderboard tab
   const leaderboardContent = document.getElementById('leaderboardContent');
-  if (leaderboardContent && experimentConfig.infoDisplayTiming === 'eachRound') {
+  if (leaderboardContent && experimentConfig.infoType === 'socialNorm') {
     const section = document.createElement('div');
     section.className = 'leaderboard-section';
     section.innerHTML = `
@@ -1560,11 +1585,10 @@ async function showSocialNorm() {
           <div class="social-norm-stat-label">Team Average</div>
           <div class="social-norm-stat-value">${avg.toFixed(2)}</div>
         </div>
-        ${experimentConfig.socialNormDisplay === 'avgAndStdDev' ? `
         <div class="social-norm-stat">
           <div class="social-norm-stat-label">Standard Deviation</div>
           <div class="social-norm-stat-value">${stdDev.toFixed(2)}</div>
-        </div>` : ''}
+        </div>
       </div>
     `;
     leaderboardContent.appendChild(section);
