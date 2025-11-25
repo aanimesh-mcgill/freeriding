@@ -1116,6 +1116,31 @@
         </div>
       `;
       
+      ${cell.infoType === 'socialNorm' ? `
+        <div class="logic-box">
+          <strong>Social Norm Logic:</strong>
+          <ul>
+            <li><strong>Target Average (Condition-Based):</strong>
+              <ul>
+                <li><strong>High Team Rank:</strong> Target average = 16 tokens (configurable via admin, default: 16)</li>
+                <li><strong>Low Team Rank:</strong> Target average = 6 tokens (configurable via admin, default: 6)</li>
+                <li><strong>Variation:</strong> +/-2 tokens applied to target (e.g., 14-18 for high, 4-8 for low)</li>
+              </ul>
+            </li>
+            <li><strong>Individual Contribution Adjustment:</strong>
+              <ul>
+                <li>Total needed = (Target Average × Group Size) - Focal User Contribution</li>
+                <li>Average per simulated member = Total Needed / Number of Simulated Members</li>
+                <li>Each simulated contribution = Average + random(-1 to +1) variation</li>
+                <li>Contributions adjusted to ensure team average matches target</li>
+              </ul>
+            </li>
+            <li><strong>Display:</strong> Only team average is shown to users (standard deviation is calculated but not displayed)</li>
+            <li><strong>Admin Configuration:</strong> Administrators can set socialNormAverageHigh, socialNormAverageLow, and socialNormStdDev</li>
+          </ul>
+        </div>
+      ` : ''}
+      
       // Data storage
       html += `
         <div class="logic-box">
