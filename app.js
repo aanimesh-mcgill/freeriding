@@ -1455,15 +1455,29 @@ async function loadTeamLeaderboard() {
     }
   }
   
-  // Combine all teams
+  // Combine all teams, ensuring no duplicates
   const allTeams = [];
-  Object.entries(groupTotals).forEach(([gid, total]) => {
-    allTeams.push({ id: gid, total: total, isSimulated: false });
-  });
-  simulatedTeams.forEach(team => {
-    allTeams.push({ id: team.id, total: team.total, isSimulated: true });
-  });
+  const teamIdsAdded = new Set();
+  
+  // Add focal team first (user's team)
   allTeams.push({ id: groupId, total: focalTeamTotal, isSimulated: false, isFocal: true });
+  teamIdsAdded.add(groupId);
+  
+  // Add other real teams (excluding focal team to avoid duplicate)
+  Object.entries(groupTotals).forEach(([gid, total]) => {
+    if (!teamIdsAdded.has(gid) && gid !== groupId) {
+      allTeams.push({ id: gid, total: total, isSimulated: false });
+      teamIdsAdded.add(gid);
+    }
+  });
+  
+  // Add simulated teams
+  simulatedTeams.forEach(team => {
+    if (!teamIdsAdded.has(team.id)) {
+      allTeams.push({ id: team.id, total: team.total, isSimulated: true });
+      teamIdsAdded.add(team.id);
+    }
+  });
   
   // Sort by total
   allTeams.sort((a, b) => b.total - a.total);
@@ -1753,32 +1767,44 @@ async function loadTeamLeaderboardForTab() {
     }
   }
   
-  // Combine real and simulated teams
+  // Combine real and simulated teams, ensuring no duplicates
   const allTeams = [];
-  Object.entries(groupTotals).forEach(([gid, total]) => {
-    allTeams.push({ 
-      id: gid, 
-      cumulative: total, 
-      thisRound: groupRoundTotals[gid] || 0,
-      isSimulated: false 
-    });
-  });
-  simulatedTeams.forEach(team => {
-    allTeams.push({ 
-      id: team.id, 
-      cumulative: team.total, 
-      thisRound: 0, // Simulated teams don't have round-specific data
-      isSimulated: true 
-    });
-  });
+  const teamIdsAdded = new Set();
   
-  // Add focal team
+  // Add focal team first (user's team)
   allTeams.push({ 
     id: groupId, 
     cumulative: focalTeamTotal, 
     thisRound: focalTeamRoundTotal,
     isSimulated: false, 
     isFocal: true 
+  });
+  teamIdsAdded.add(groupId);
+  
+  // Add other real teams (excluding focal team to avoid duplicate)
+  Object.entries(groupTotals).forEach(([gid, total]) => {
+    if (!teamIdsAdded.has(gid) && gid !== groupId) {
+      allTeams.push({ 
+        id: gid, 
+        cumulative: total, 
+        thisRound: groupRoundTotals[gid] || 0,
+        isSimulated: false 
+      });
+      teamIdsAdded.add(gid);
+    }
+  });
+  
+  // Add simulated teams
+  simulatedTeams.forEach(team => {
+    if (!teamIdsAdded.has(team.id)) {
+      allTeams.push({ 
+        id: team.id, 
+        cumulative: team.total, 
+        thisRound: 0, // Simulated teams don't have round-specific data
+        isSimulated: true 
+      });
+      teamIdsAdded.add(team.id);
+    }
   });
   
   // Sort by cumulative (for ranking)
