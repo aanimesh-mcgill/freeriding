@@ -306,8 +306,9 @@ async function generateSyntheticParticipant(cellNumber, participantIndex, totalR
       });
     }
     
-    // Calculate payoff (MPCR = 0.4, so group share = 0.4 * groupTotal)
-    const groupShare = 0.4 * groupTotal;
+    // Calculate payoff (MPCR = 0.4, so group share per person = (groupTotal * 0.4) / groupSize)
+    const multiplier = 0.4; // MPCR
+    const groupShare = (groupTotal * multiplier) / groupSize;
     const kept = 20 - contribution;
     const payoff = kept + groupShare;
     cumulativePayoff += payoff;
