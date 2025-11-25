@@ -2241,7 +2241,7 @@ async function loadIndividualLeaderboardAcrossTeams() {
   // Ensure user's team is Team 5
   teamNumberMap.set(groupId, 5);
   
-  // Calculate cumulative totals and current round contributions for ALL members
+  // Calculate cumulative totals and current round contributions for ALL members across ALL teams
   const playerData = new Map();
   
   // Initialize with current user
@@ -2258,18 +2258,18 @@ async function loadIndividualLeaderboardAcrossTeams() {
     groupId: groupId
   });
   
-  // Process all contributions to get cumulative totals for all simulated members from user's teams only
+  // Process all contributions from contributions collection (already saved contributions)
   allContributionsSnapshot.forEach(doc => {
     const data = doc.data();
     const pid = data.participantId;
-    // Only include simulated members from this user's experiment teams
+    // Include all simulated members from all teams
     if ((data.isSimulated === true || pid.startsWith('SIM_')) && pid !== participantId) {
       // Extract groupId from SIM_groupId_memberNum format
       const parts = pid.split('_');
       const simGroupId = parts.length > 1 ? parts[1] : groupId;
       const memberNum = parts.length > 2 ? parts[2] : '1';
       
-      // Only process if this simulated member belongs to one of the user's teams
+      // Process if this simulated member belongs to one of the user's teams
       if (userTeamIds.includes(simGroupId)) {
         if (!playerData.has(pid)) {
           playerData.set(pid, {
@@ -2286,7 +2286,7 @@ async function loadIndividualLeaderboardAcrossTeams() {
     }
   });
   
-  // Add current round contributions
+  // Add current round contributions from contributions collection
   currentRoundContributionsSnapshot.forEach(doc => {
     const data = doc.data();
     const pid = data.participantId;
@@ -2297,6 +2297,78 @@ async function loadIndividualLeaderboardAcrossTeams() {
         playerData.get(pid).thisRound += data.contribution;
       }
     }
+  });
+  
+  // Also fetch from simulatedContributions for teams that don't have contributions saved yet
+  // This ensures we show all members from all teams, even if their contributions haven't been saved to contributions collection
+  const simulatedContribQueries = userTeamIds.map(async (teamId) => {
+    // Get simulated contributions for all rounds for this team
+    const simContribs = [];
+    for (let round = 1; round <= currentRound; round++) {
+      const simDoc = await db.collection('simulatedContributions').doc(`${teamId}_${round}`).get();
+      if (simDoc.exists) {
+        const contribs = simDoc.data().contributions || [];
+        contribs.forEach(c => {
+          simContribs.push({
+            memberId: c.memberId,
+            contribution: c.contribution,
+            round: round
+          });
+        });
+      }
+    }
+    return { teamId, contribs: simContribs };
+  });
+  
+  const simulatedContribResults = await Promise.all(simulatedContribQueries);
+  
+  // Process simulated contributions and add to playerData
+  simulatedContribResults.forEach(({ teamId, contribs }) => {
+    contribs.forEach(c => {
+      const pid = c.memberId;
+      // Skip if already processed from contributions collection
+      if (playerData.has(pid)) {
+        // Only update if this contribution hasn't been counted yet
+        // Check if this round's contribution is already in playerData
+        const existingPlayer = playerData.get(pid);
+        // For cumulative, add all rounds up to currentRound
+        if (c.round <= currentRound) {
+          // Check if we already have this round's contribution from contributions collection
+          const hasThisRound = allContributionsSnapshot.docs.some(doc => {
+            const data = doc.data();
+            return data.participantId === pid && data.round === c.round;
+          });
+          if (!hasThisRound) {
+            existingPlayer.cumulative += c.contribution;
+            if (c.round === currentRound) {
+              existingPlayer.thisRound += c.contribution;
+            }
+          }
+        }
+      } else {
+        // New player, initialize
+        const parts = pid.split('_');
+        const memberNum = parts.length > 2 ? parts[2] : '1';
+        if (!playerData.has(pid)) {
+          playerData.set(pid, {
+            id: pid,
+            cumulative: 0,
+            thisRound: 0,
+            isSimulated: true,
+            groupId: teamId,
+            memberNum: memberNum
+          });
+        }
+        const player = playerData.get(pid);
+        // Add all rounds up to currentRound for cumulative
+        if (c.round <= currentRound) {
+          player.cumulative += c.contribution;
+          if (c.round === currentRound) {
+            player.thisRound += c.contribution;
+          }
+        }
+      }
+    });
   });
   
   // Convert to array and sort by cumulative (for ranking)
