@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Statistical Analysis - Decision-Making Experiment</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/ml-matrix@6.10.4/lib/ml-matrix.min.js"></script>
+  <style>
+    .analysis-container {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    
+    .analysis-header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 30px;
+      border-radius: 12px;
+      margin-bottom: 30px;
+    }
+    
+    .analysis-header h1 {
+      margin: 0 0 10px 0;
+      font-size: 32px;
+    }
+    
+    .analysis-section {
+      background: white;
+      border-radius: 12px;
+      padding: 25px;
+      margin-bottom: 25px;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    }
+    
+    .analysis-section h2 {
+      color: #667eea;
+      margin-top: 0;
+      margin-bottom: 20px;
+      font-size: 24px;
+    }
+    
+    .model-results {
+      overflow-x: auto;
+    }
+    
+    .results-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 15px;
+    }
+    
+    .results-table th {
+      background: #667eea;
+      color: white;
+      padding: 12px;
+      text-align: left;
+      font-weight: bold;
+    }
+    
+    .results-table td {
+      padding: 10px 12px;
+      border-bottom: 1px solid #e0e0e0;
+    }
+    
+    .results-table tr:hover {
+      background: #f5f5f5;
+    }
+    
+    .coefficient-positive {
+      color: #27ae60;
+      font-weight: bold;
+    }
+    
+    .coefficient-negative {
+      color: #e74c3c;
+      font-weight: bold;
+    }
+    
+    .p-value-significant {
+      color: #27ae60;
+      font-weight: bold;
+    }
+    
+    .p-value-marginal {
+      color: #f39c12;
+      font-weight: bold;
+    }
+    
+    .model-summary {
+      background: #f8f9fa;
+      padding: 15px;
+      border-radius: 8px;
+      margin-top: 15px;
+    }
+    
+    .model-summary-item {
+      display: inline-block;
+      margin-right: 30px;
+      margin-bottom: 10px;
+    }
+    
+    .model-summary-label {
+      font-weight: bold;
+      color: #667eea;
+      margin-right: 5px;
+    }
+    
+    .loading {
+      text-align: center;
+      padding: 40px;
+      color: #666;
+    }
+    
+    .spinner {
+      border: 4px solid #f3f3f3;
+      border-top: 4px solid #667eea;
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 20px;
+    }
+    
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    
+    .error-message {
+      background: #fee;
+      color: #c33;
+      padding: 15px;
+      border-radius: 8px;
+      margin: 15px 0;
+      border-left: 4px solid #c33;
+    }
+    
+    .info-box {
+      background: #e8f4f8;
+      padding: 15px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      border-left: 4px solid #667eea;
+    }
+    
+    .info-box strong {
+      color: #667eea;
+    }
+  </style>
+</head>
+<body>
+  <div class="analysis-container">
+    <div class="analysis-header">
+      <h1>Statistical Analysis</h1>
+      <p>Impact of Treatment Conditions on Contribution Decisions</p>
+      <p style="font-size: 14px; opacity: 0.9;">Controlling for previous round actions and outcomes</p>
+    </div>
+    
+    <div class="analysis-section">
+      <h2>Analysis Overview</h2>
+      <div class="info-box">
+        <strong>Model Specification:</strong> Multiple regression analysis examining the impact of treatment conditions on contribution decisions, controlling for:
+        <ul style="margin: 10px 0 0 20px;">
+          <li>Previous round's own contribution (lagged dependent variable)</li>
+          <li>Previous round's payoff</li>
+          <li>Previous round's group total</li>
+          <li>Round number (to control for learning effects)</li>
+        </ul>
+      </div>
+      <button id="runAnalysisBtn" class="btn btn-primary" style="font-size: 16px; padding: 12px 24px;">Run Statistical Analysis</button>
+    </div>
+    
+    <div id="analysisResults" class="analysis-section" style="display: none;">
+      <h2>Regression Results</h2>
+      <div id="resultsContent"></div>
+    </div>
+    
+    <div id="loadingSection" class="analysis-section" style="display: none;">
+      <div class="loading">
+        <div class="spinner"></div>
+        <p>Loading data and running analysis...</p>
+        <p style="font-size: 14px; color: #999;">This may take a few moments</p>
+      </div>
+    </div>
+  </div>
+  
+  <script src="analysis.js"></script>
+</body>
+</html>
+
