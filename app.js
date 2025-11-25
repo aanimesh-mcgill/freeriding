@@ -550,7 +550,7 @@ async function createUserExperimentTeams(pid) {
         memberCount: 1,
         status: 'active',
         participantId: pid, // Link this experiment session to the participant
-        teamNumber: 3,
+        teamNumber: 5,
         createdAt: firebase.firestore.FieldValue.serverTimestamp()
       });
     } else {
@@ -1468,13 +1468,13 @@ async function loadTeamLeaderboard() {
   // Sort by total
   allTeams.sort((a, b) => b.total - a.total);
   
-  // Assign unique team numbers: user's team is Team 3, others are 1-2, 4-10
-  const availableNumbers = [1, 2, 4, 5, 6, 7, 8, 9, 10]; // Skip 3 for user's team
+  // Assign unique team numbers: user's team is Team 5, others are 1-4, 6-10
+  const availableNumbers = [1, 2, 3, 4, 6, 7, 8, 9, 10]; // Skip 5 for user's team
   let numberIndex = 0;
   const teamNumberMap = new Map();
   
-  // Always assign Team 3 to user's team
-  teamNumberMap.set(groupId, 3);
+  // Always assign Team 5 to user's team
+  teamNumberMap.set(groupId, 5);
   
   // Assign numbers 1-4, 6-10 to all other teams
   allTeams.forEach(team => {
@@ -1784,13 +1784,13 @@ async function loadTeamLeaderboardForTab() {
   // Sort by cumulative (for ranking)
   allTeams.sort((a, b) => b.cumulative - a.cumulative);
   
-  // Assign unique team numbers: user's team is Team 3, others are 1-2, 4-10
-  const availableNumbers = [1, 2, 4, 5, 6, 7, 8, 9, 10]; // Skip 3 for user's team
+  // Assign unique team numbers: user's team is Team 5, others are 1-4, 6-10
+  const availableNumbers = [1, 2, 3, 4, 6, 7, 8, 9, 10]; // Skip 5 for user's team
   let numberIndex = 0;
   const teamNumberMap = new Map();
   
-  // Always assign Team 3 to user's team
-  teamNumberMap.set(groupId, 3);
+  // Always assign Team 5 to user's team
+  teamNumberMap.set(groupId, 5);
   
   // Assign numbers 1-4, 6-10 to all other teams
   allTeams.forEach(team => {
@@ -1856,23 +1856,24 @@ async function loadIndividualLeaderboardWithinTeam() {
   // Initialize member data - ensure all 6 members are included
   const memberData = new Map();
   
-  // Add focal user (You) - get cumulative from participants collection
-  const participantDoc = await db.collection('participants').doc(participantId).get();
-  const userCumulative = participantDoc.exists ? (participantDoc.data().totalContribution || 0) : 0;
+  // Initialize member data - ensure all 6 members are included
+  // User is member 5, so simulated members are 1-4 and 6
   memberData.set(participantId, {
     id: participantId,
-    cumulative: userCumulative,
+    cumulative: 0,
     thisRound: 0
   });
   
-  // Add all 5 simulated members (Team Member 1-5)
-  for (let i = 1; i <= 5; i++) {
-    const simId = `SIM_${groupId}_${i}`;
-    memberData.set(simId, {
-      id: simId,
-      cumulative: 0,
-      thisRound: 0
-    });
+  // Add simulated members 1-4 and 6 (skip 5, which is the user)
+  for (let i = 1; i <= 6; i++) {
+    if (i !== 5) { // Skip member 5 (the user)
+      const simId = `SIM_${groupId}_${i}`;
+      memberData.set(simId, {
+        id: simId,
+        cumulative: 0,
+        thisRound: 0
+      });
+    }
   }
   
   // Get all contributions for this group - only current user and simulated members
@@ -1886,7 +1887,7 @@ async function loadIndividualLeaderboardWithinTeam() {
     .where('round', '==', currentRound)
     .get();
   
-  // Calculate cumulative totals
+  // Calculate cumulative totals from contributions ONLY (not from participants.totalContribution to avoid double-counting)
   allContributionsSnapshot.forEach(doc => {
     const data = doc.data();
     const pid = data.participantId;
@@ -2002,8 +2003,8 @@ async function loadIndividualLeaderboardAcrossTeams() {
     teamNumberMap.set(gid, teamNum);
   });
   
-  // Ensure user's team is Team 3
-  teamNumberMap.set(groupId, 3);
+  // Ensure user's team is Team 5
+  teamNumberMap.set(groupId, 5);
   
   // Calculate cumulative totals and current round contributions for ALL members
   const playerData = new Map();
@@ -2120,7 +2121,7 @@ async function loadIndividualLeaderboardAcrossTeams() {
         displayName = 'You';
       } else if (player.id.startsWith('SIM_')) {
         // Get team number for this member's group
-        const teamNum = teamNumberMap.get(player.groupId) || 3;
+        const teamNum = teamNumberMap.get(player.groupId) || 5;
         displayName = `Team ${teamNum} Member ${player.memberNum}`;
       } else {
         displayName = `Team Member ${player.id}`;
