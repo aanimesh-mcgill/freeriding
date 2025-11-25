@@ -591,11 +591,18 @@ Check/uncheck:
 #### `settings`
 - Document ID: `experiment`
 - Contains all experiment configuration:
-  - `totalRounds`, `roundDuration`, `groupSize`, `endowment`, `multiplier`
-  - `resultsDelay`
-  - `infoDisplayTiming`, `focalUserCondition`, `leaderboardStability`
-  - `socialNormDisplay`
-  - `showTeamLeaderboard`, `showIndividualLeaderboardWithinTeam`, `showIndividualLeaderboardAcrossTeams`
+  - **Basic Settings**: `totalRounds`, `roundDuration`, `groupSize`, `endowment`, `multiplier`, `resultsDelay`
+  - **All 9 Treatment Factors**:
+    - `infoDisplayTiming`: 'eachRound' or 'endOnly'
+    - `focalUserCondition`: 'freeRider' or 'random'
+    - `leaderboardStability`: 'stable' or 'dynamic'
+    - `socialNormDisplay`: 'none', 'avgOnly', or 'avgAndStdDev'
+    - `focalMemberTeamRank`: 'high', 'middle', or 'low'
+    - `teamLeaderboardRankingStability`: 'stable' or 'dynamic'
+    - `showTeamLeaderboard`: boolean
+    - `showIndividualLeaderboardWithinTeam`: boolean
+    - `showIndividualLeaderboardAcrossTeams`: boolean
+  - `updatedAt`: When settings were last updated
 
 ## Deployment
 
