@@ -530,6 +530,49 @@ async function startExperiment() {
   }
 }
 
+// Create 10 teams for a new user's experiment
+async function createUserExperimentTeams(pid) {
+  const allTeamIds = [];
+  let userTeamId = null; // User will be assigned to team 3
+  
+  // Create 10 teams
+  for (let teamNum = 1; teamNum <= 10; teamNum++) {
+    const newGroupRef = db.collection('groups').doc();
+    const teamId = newGroupRef.id;
+    allTeamIds.push(teamId);
+    
+    // Team 3 is the user's team
+    if (teamNum === 3) {
+      userTeamId = teamId;
+      await newGroupRef.set({
+        groupId: teamId,
+        members: [pid], // User is member 5, but we'll add them to members array
+        memberCount: 1,
+        status: 'active',
+        participantId: pid, // Link this experiment session to the participant
+        teamNumber: 3,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+    } else {
+      // Other teams have no real members, only simulated
+      await newGroupRef.set({
+        groupId: teamId,
+        members: [],
+        memberCount: 0,
+        status: 'active',
+        participantId: pid, // Link this experiment session to the participant
+        teamNumber: teamNum,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+    }
+  }
+  
+  return {
+    userTeamId: userTeamId,
+    allTeamIds: allTeamIds
+  };
+}
+
 async function assignToGroup(pid) {
   // Find existing groups that need members
   const groupsSnapshot = await db.collection('groups')
