@@ -234,47 +234,314 @@ async function loadStatistics() {
   }
 }
 
-async function loadParticipants() {
+let currentSearchedParticipantId = null;
+
+async function searchParticipant() {
+  const searchInput = document.getElementById('participantSearchInput').value.trim();
+  if (!searchInput) {
+    alert('Please enter a Participant ID or Unique ID');
+    return;
+  }
+  
   try {
-    const participantsSnapshot = await db.collection('participants').orderBy('createdAt', 'desc').get();
-    const tbody = document.getElementById('participantsTableBody');
+    // Try to find by participantId first
+    let participantDoc = await db.collection('participants').doc(searchInput).get();
+    
+    // If not found, try to find by uniqueParticipantId
+    if (!participantDoc.exists) {
+      const participantsSnapshot = await db.collection('participants')
+        .where('uniqueParticipantId', '==', searchInput)
+        .limit(1)
+        .get();
+      
+      if (!participantsSnapshot.empty) {
+        participantDoc = participantsSnapshot.docs[0];
+      }
+    }
+    
+    if (!participantDoc.exists) {
+      alert('Participant not found. Please check the ID and try again.');
+      return;
+    }
+    
+    const participantData = participantDoc.exists ? participantDoc.data() : participantDoc.data();
+    currentSearchedParticipantId = participantData.participantId;
+    
+    // Show participant details
+    displayParticipantDetails(participantData);
+    
+  } catch (error) {
+    console.error('Error searching participant:', error);
+    alert('Error searching for participant. Please try again.');
+  }
+}
+
+function clearParticipantSearch() {
+  document.getElementById('participantSearchInput').value = '';
+  document.getElementById('participantDetailsSection').style.display = 'none';
+  currentSearchedParticipantId = null;
+}
+
+async function displayParticipantDetails(participantData) {
+  // Show the details section
+  document.getElementById('participantDetailsSection').style.display = 'block';
+  
+  // Display basic info
+  const basicInfo = document.getElementById('participantBasicInfo');
+  const config = participantData.experimentConfig || {};
+  basicInfo.innerHTML = `
+    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px;">
+      <div><strong>Participant ID:</strong> ${participantData.participantId}</div>
+      <div><strong>Unique ID:</strong> ${participantData.uniqueParticipantId || 'N/A'}</div>
+      <div><strong>Group ID:</strong> ${participantData.groupId ? participantData.groupId.substring(0, 12) + '...' : 'N/A'}</div>
+      <div><strong>Current Round:</strong> ${participantData.currentRound || 0}</div>
+      <div><strong>Total Contribution:</strong> ${participantData.totalContribution || 0}</div>
+      <div><strong>Cumulative Payoff:</strong> ${(participantData.cumulativePayoff || 0).toFixed(2)}</div>
+      <div><strong>Status:</strong> <span class="status-${participantData.status || 'unknown'}">${participantData.status || 'unknown'}</span></div>
+      <div><strong>Cell:</strong> ${config.betweenSubjectCell || 'N/A'}</div>
+      <div><strong>Info Type:</strong> ${config.infoType || 'N/A'}</div>
+      <div><strong>Focal User Level:</strong> ${config.focalUserContributionLevel || 'N/A'}</div>
+    </div>
+  `;
+  
+  // Load competing teams
+  await loadCompetingTeams(participantData.participantId, participantData.groupId);
+  
+  // Load team members
+  await loadTeamMembers(participantData.groupId);
+  
+  // Load rounds
+  await loadParticipantRounds(participantData.participantId);
+}
+
+async function loadCompetingTeams(participantId, userTeamId) {
+  try {
+    // Get all teams for this participant's experiment session
+    const teamsSnapshot = await db.collection('groups')
+      .where('participantId', '==', participantId)
+      .get();
+    
+    const container = document.getElementById('competingTeamsContainer');
+    container.innerHTML = '';
+    
+    if (teamsSnapshot.empty) {
+      container.innerHTML = '<p style="color: #666;">No teams found for this participant.</p>';
+      return;
+    }
+    
+    // Get contributions for each team to calculate totals
+    const teamsData = [];
+    for (const teamDoc of teamsSnapshot.docs) {
+      const teamData = teamDoc.data();
+      const teamId = teamDoc.id;
+      
+      // Get total contributions for this team
+      const contributionsSnapshot = await db.collection('contributions')
+        .where('groupId', '==', teamId)
+        .get();
+      
+      let teamTotal = 0;
+      contributionsSnapshot.forEach(doc => {
+        teamTotal += doc.data().contribution || 0;
+      });
+      
+      teamsData.push({
+        id: teamId,
+        teamNumber: teamData.teamNumber || 'N/A',
+        isUserTeam: teamId === userTeamId,
+        totalContribution: teamTotal,
+        memberCount: teamData.memberCount || 0
+      });
+    }
+    
+    // Sort by team number
+    teamsData.sort((a, b) => {
+      if (typeof a.teamNumber === 'number' && typeof b.teamNumber === 'number') {
+        return a.teamNumber - b.teamNumber;
+      }
+      return 0;
+    });
+    
+    // Display teams
+    const table = document.createElement('table');
+    table.className = 'data-table';
+    table.style.width = '100%';
+    table.innerHTML = `
+      <thead>
+        <tr>
+          <th>Team #</th>
+          <th>Team ID</th>
+          <th>Total Contribution</th>
+          <th>Members</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${teamsData.map(team => `
+          <tr style="${team.isUserTeam ? 'background-color: #e3f2fd; font-weight: bold;' : ''}">
+            <td>${team.isUserTeam ? 'Your Team (5)' : team.teamNumber}</td>
+            <td>${team.id.substring(0, 12)}...</td>
+            <td>${team.totalContribution}</td>
+            <td>${team.memberCount}</td>
+            <td>${team.isUserTeam ? 'Focal Team' : 'Competing Team'}</td>
+          </tr>
+        `).join('')}
+      </tbody>
+    `;
+    container.appendChild(table);
+    
+  } catch (error) {
+    console.error('Error loading competing teams:', error);
+    document.getElementById('competingTeamsContainer').innerHTML = 
+      '<p style="color: #e74c3c;">Error loading teams.</p>';
+  }
+}
+
+async function loadTeamMembers(groupId) {
+  try {
+    // Get all contributions for this team to identify members
+    const contributionsSnapshot = await db.collection('contributions')
+      .where('groupId', '==', groupId)
+      .get();
+    
+    const members = new Map();
+    
+    contributionsSnapshot.forEach(doc => {
+      const data = doc.data();
+      const pid = data.participantId;
+      if (!members.has(pid)) {
+        members.set(pid, {
+          participantId: pid,
+          isSimulated: data.isSimulated || pid.startsWith('SIM_'),
+          totalContribution: 0,
+          rounds: 0
+        });
+      }
+      const member = members.get(pid);
+      member.totalContribution += data.contribution || 0;
+      member.rounds++;
+    });
+    
+    const container = document.getElementById('teamMembersContainer');
+    container.innerHTML = '';
+    
+    if (members.size === 0) {
+      container.innerHTML = '<p style="color: #666;">No team members found.</p>';
+      return;
+    }
+    
+    const membersArray = Array.from(members.values()).sort((a, b) => {
+      // Sort: real participant first, then by contribution
+      if (a.isSimulated && !b.isSimulated) return 1;
+      if (!a.isSimulated && b.isSimulated) return -1;
+      return b.totalContribution - a.totalContribution;
+    });
+    
+    const table = document.createElement('table');
+    table.className = 'data-table';
+    table.style.width = '100%';
+    table.innerHTML = `
+      <thead>
+        <tr>
+          <th>Member</th>
+          <th>Type</th>
+          <th>Total Contribution</th>
+          <th>Rounds</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${membersArray.map(member => `
+          <tr style="${!member.isSimulated ? 'background-color: #e3f2fd; font-weight: bold;' : ''}">
+            <td>${member.isSimulated ? member.participantId.substring(0, 20) + '...' : 'You (Focal User)'}</td>
+            <td>${member.isSimulated ? 'Simulated' : 'Real Participant'}</td>
+            <td>${member.totalContribution}</td>
+            <td>${member.rounds}</td>
+          </tr>
+        `).join('')}
+      </tbody>
+    `;
+    container.appendChild(table);
+    
+  } catch (error) {
+    console.error('Error loading team members:', error);
+    document.getElementById('teamMembersContainer').innerHTML = 
+      '<p style="color: #e74c3c;">Error loading team members.</p>';
+  }
+}
+
+async function loadParticipantRounds(participantId) {
+  try {
+    const selectedRound = document.getElementById('participantRoundFilter').value;
+    
+    // Get all rounds for this participant
+    let query = db.collection('payoffs')
+      .where('participantId', '==', participantId)
+      .orderBy('round');
+    
+    if (selectedRound !== 'all') {
+      query = query.where('round', '==', parseInt(selectedRound));
+    }
+    
+    const payoffsSnapshot = await query.get();
+    const tbody = document.getElementById('participantRoundsTableBody');
     tbody.innerHTML = '';
     
-    participantsSnapshot.forEach(doc => {
+    // Update round filter options
+    if (selectedRound === 'all') {
+      const allRoundsSnapshot = await db.collection('payoffs')
+        .where('participantId', '==', participantId)
+        .orderBy('round')
+        .get();
+      
+      const rounds = new Set();
+      allRoundsSnapshot.forEach(doc => {
+        rounds.add(doc.data().round);
+      });
+      
+      const roundFilter = document.getElementById('participantRoundFilter');
+      const currentValue = roundFilter.value;
+      roundFilter.innerHTML = '<option value="all">All Rounds</option>';
+      
+      Array.from(rounds).sort((a, b) => a - b).forEach(round => {
+        const option = document.createElement('option');
+        option.value = round;
+        option.textContent = `Round ${round}`;
+        roundFilter.appendChild(option);
+      });
+      
+      roundFilter.value = currentValue;
+    }
+    
+    // Display rounds
+    payoffsSnapshot.forEach(doc => {
       const data = doc.data();
       const row = tbody.insertRow();
       
-      row.insertCell(0).textContent = data.participantId || 'N/A';
-      row.insertCell(1).textContent = data.groupId ? `Group ${data.groupId.substring(0, 8)}` : 'N/A';
-      row.insertCell(2).textContent = data.currentRound || 0;
-      row.insertCell(3).textContent = data.totalContribution || 0;
-      row.insertCell(4).textContent = (data.cumulativePayoff || 0).toFixed(2);
+      row.insertCell(0).textContent = data.round || 'N/A';
+      row.insertCell(1).textContent = data.contribution || 0;
+      row.insertCell(2).textContent = data.groupTotal || 0;
+      row.insertCell(3).textContent = (data.groupShare || 0).toFixed(2);
+      row.insertCell(4).textContent = data.kept || 0;
+      row.insertCell(5).textContent = (data.payoff || 0).toFixed(2);
+      row.insertCell(6).textContent = (data.cumulativePayoff || 0).toFixed(2);
       
       // Treatment conditions
-      const treatments = [];
-      if (data.showTeamLeaderboard) treatments.push('Team LB');
-      if (data.showIndividualLeaderboard) treatments.push('Ind LB');
-      if (data.showContributionComparison) treatments.push('Comp');
-      row.insertCell(5).textContent = treatments.join(', ') || 'None';
-      
-      // Status
-      const statusCell = row.insertCell(6);
-      statusCell.textContent = data.status || 'unknown';
-      statusCell.className = `status-${data.status || 'unknown'}`;
-      
-      // Actions
-      const actionsCell = row.insertCell(7);
-      const viewBtn = document.createElement('button');
-      viewBtn.textContent = 'View Details';
-      viewBtn.className = 'btn btn-secondary';
-      viewBtn.style.fontSize = '12px';
-      viewBtn.style.padding = '5px 10px';
-      viewBtn.onclick = () => viewParticipantDetails(data.participantId);
-      actionsCell.appendChild(viewBtn);
+      const treatments = data.treatmentConditions || {};
+      const treatmentText = treatments.infoType 
+        ? `Cell ${treatments.betweenSubjectCell || 'N/A'}: ${treatments.infoType} | Team: ${treatments.teamContribution || 'N/A'} | Ind LB: ${treatments.individualLBStability || 'N/A'} | Team LB: ${treatments.teamLBStability || 'N/A'}`
+        : 'N/A';
+      row.insertCell(7).textContent = treatmentText;
+      row.insertCell(7).style.fontSize = '11px';
     });
     
+    if (payoffsSnapshot.empty) {
+      tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; color: #666;">No rounds found for this participant.</td></tr>';
+    }
+    
   } catch (error) {
-    console.error('Error loading participants:', error);
+    console.error('Error loading participant rounds:', error);
+    document.getElementById('participantRoundsTableBody').innerHTML = 
+      '<tr><td colspan="8" style="text-align: center; color: #e74c3c;">Error loading rounds.</td></tr>';
   }
 }
 
