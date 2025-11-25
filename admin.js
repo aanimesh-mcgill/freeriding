@@ -98,7 +98,7 @@ function initializeEventListeners() {
   document.getElementById('exportBtn').addEventListener('click', exportToExcel);
   document.getElementById('resetBtn').addEventListener('click', confirmReset);
   document.getElementById('saveSettingsBtn').addEventListener('click', saveSettings);
-  document.getElementById('roundSelector').addEventListener('change', loadRoundData);
+  // Participant search event listeners are set up in the new search functions
 }
 
 async function loadExperimentSettings() {
