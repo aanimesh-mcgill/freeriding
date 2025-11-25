@@ -55,6 +55,9 @@ let experimentConfig = {
   // Team Leaderboard Ranking Stability
   teamLeaderboardRankingStability: 'stable', // 'stable' or 'dynamic'
   
+  // Testing Feature
+  showTreatmentConditionsIcon: true, // Show treatment conditions icon (for testing)
+  
   // Simulated Team Members
   simulatedTeamSize: 3, // Number of simulated team members (total group size = 4)
   simulatedTeamContributions: [] // Will be generated based on condition
