@@ -15,6 +15,7 @@ const db = firebase.firestore();
 
 // Experiment State
 let participantId = "";
+let uniqueParticipantId = ""; // Auto-generated unique ID
 let currentRound = 1;
 let totalRounds = 10;
 let roundDuration = 120; // seconds
@@ -156,6 +157,9 @@ async function loadExperimentSettings() {
       experimentConfig.showTeamLeaderboard = settings.showTeamLeaderboard || false;
       experimentConfig.showIndividualLeaderboardWithinTeam = settings.showIndividualLeaderboardWithinTeam || false;
       experimentConfig.showIndividualLeaderboardAcrossTeams = settings.showIndividualLeaderboardAcrossTeams || false;
+      experimentConfig.focalMemberTeamRank = settings.focalMemberTeamRank || 'middle';
+      experimentConfig.teamLeaderboardRankingStability = settings.teamLeaderboardRankingStability || 'stable';
+      experimentConfig.showTreatmentConditionsIcon = settings.showTreatmentConditionsIcon !== undefined ? settings.showTreatmentConditionsIcon : true;
       experimentConfig.simulatedTeamSize = groupSize - 1; // Total group size minus the focal user
       
       document.getElementById('totalRounds').textContent = totalRounds;
@@ -163,6 +167,47 @@ async function loadExperimentSettings() {
   } catch (error) {
     console.log('Using default settings:', error);
   }
+}
+
+// Update unique ID display
+function updateUniqueIdDisplay() {
+  const uniqueIdEl = document.getElementById('uniqueParticipantId');
+  if (uniqueIdEl && uniqueParticipantId) {
+    uniqueIdEl.textContent = uniqueParticipantId;
+  }
+}
+
+// Update treatment conditions icon visibility and content
+function updateTreatmentConditionsIcon() {
+  const iconEl = document.getElementById('treatmentConditionsIcon');
+  const listEl = document.getElementById('treatmentConditionsList');
+  
+  if (iconEl) {
+    iconEl.style.display = experimentConfig.showTreatmentConditionsIcon ? 'inline-block' : 'none';
+  }
+  
+  if (listEl && experimentConfig) {
+    const conditions = [
+      `Info Timing: ${experimentConfig.infoDisplayTiming || 'N/A'}`,
+      `Focal Condition: ${experimentConfig.focalUserCondition || 'N/A'}`,
+      `LB Stability: ${experimentConfig.leaderboardStability || 'N/A'}`,
+      `Social Norm: ${experimentConfig.socialNormDisplay || 'N/A'}`,
+      `Team Rank: ${experimentConfig.focalMemberTeamRank || 'N/A'}`,
+      `Team Rank Stability: ${experimentConfig.teamLeaderboardRankingStability || 'N/A'}`,
+      `Team LB: ${experimentConfig.showTeamLeaderboard ? 'Yes' : 'No'}`,
+      `Ind LB (Team): ${experimentConfig.showIndividualLeaderboardWithinTeam ? 'Yes' : 'No'}`,
+      `Ind LB (All): ${experimentConfig.showIndividualLeaderboardAcrossTeams ? 'Yes' : 'No'}`
+    ];
+    
+    listEl.innerHTML = conditions.map(c => `<li>${c}</li>`).join('');
+  }
+}
+
+// Generate unique participant ID
+function generateUniqueId() {
+  const timestamp = Date.now();
+  const random = Math.random().toString(36).substring(2, 8).toUpperCase();
+  return `UID-${timestamp}-${random}`;
 }
 
 async function startExperiment() {
@@ -184,6 +229,7 @@ async function startExperiment() {
       currentRound = data.currentRound || 1;
       groupId = data.groupId || '';
       cumulativePayoff = data.cumulativePayoff || 0;
+      uniqueParticipantId = data.uniqueParticipantId || generateUniqueId();
       // Load experiment config from participant record
       if (data.experimentConfig) {
         experimentConfig = { ...experimentConfig, ...data.experimentConfig };
@@ -194,6 +240,9 @@ async function startExperiment() {
         return;
       }
     } else {
+      // New participant - generate unique ID
+      uniqueParticipantId = generateUniqueId();
+      
       // New participant - use experiment config from settings
       // Assign to group (same group for all rounds)
       groupId = await assignToGroup(participantId);
@@ -204,6 +253,7 @@ async function startExperiment() {
       // Create participant record with experiment config
       await db.collection('participants').doc(participantId).set({
         participantId,
+        uniqueParticipantId,
         groupId,
         currentRound: 1,
         totalContribution: 0,
@@ -217,6 +267,12 @@ async function startExperiment() {
     // Show experiment screen
     document.getElementById('welcomeScreen').classList.remove('active');
     document.getElementById('experimentScreen').classList.add('active');
+    
+    // Update unique ID display
+    updateUniqueIdDisplay();
+    
+    // Update treatment conditions icon visibility and content
+    updateTreatmentConditionsIcon();
     
     // Set up real-time leaderboard listeners
     setupLeaderboardListeners();

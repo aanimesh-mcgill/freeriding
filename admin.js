@@ -55,6 +55,7 @@ async function loadExperimentSettings() {
       document.getElementById('showTeamLeaderboardSetting').checked = settings.showTeamLeaderboard || false;
       document.getElementById('showIndividualLeaderboardWithinTeamSetting').checked = settings.showIndividualLeaderboardWithinTeam || false;
       document.getElementById('showIndividualLeaderboardAcrossTeamsSetting').checked = settings.showIndividualLeaderboardAcrossTeams || false;
+      document.getElementById('showTreatmentConditionsIconSetting').checked = settings.showTreatmentConditionsIcon !== undefined ? settings.showTreatmentConditionsIcon : true;
     }
   } catch (error) {
     console.error('Error loading settings:', error);
@@ -82,6 +83,7 @@ async function saveSettings() {
     showTeamLeaderboard: document.getElementById('showTeamLeaderboardSetting').checked,
     showIndividualLeaderboardWithinTeam: document.getElementById('showIndividualLeaderboardWithinTeamSetting').checked,
     showIndividualLeaderboardAcrossTeams: document.getElementById('showIndividualLeaderboardAcrossTeamsSetting').checked,
+    showTreatmentConditionsIcon: document.getElementById('showTreatmentConditionsIconSetting').checked,
     
     updatedAt: firebase.firestore.FieldValue.serverTimestamp()
   };

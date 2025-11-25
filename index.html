@@ -87,9 +87,24 @@
           </div>
         </div>
         <div class="header-right">
+          <div class="unique-id-display">
+            <span class="unique-id-label">ID:</span>
+            <span id="uniqueParticipantId" class="unique-id-value">--</span>
+          </div>
           <div class="token-display">
             <span class="token-label">Your Tokens:</span>
             <span id="remainingTokens" class="token-value">20</span>
+          </div>
+          <div id="treatmentConditionsIcon" class="treatment-icon" title="Treatment Conditions (Testing)">
+            <span>ℹ️</span>
+            <div class="treatment-tooltip">
+              <div class="treatment-tooltip-content">
+                <strong>Treatment Conditions:</strong>
+                <ul id="treatmentConditionsList">
+                  <li>Loading...</li>
+                </ul>
+              </div>
+            </div>
           </div>
         </div>
       </div>
