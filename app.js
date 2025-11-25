@@ -30,37 +30,41 @@ let timerInterval = null;
 let timeRemaining = 0;
 let cumulativePayoff = 0;
 
-// Experiment Configuration (from admin settings)
+// Experiment Design: 7×2 between-subject (14 cells) + 3 within-subject factors
+// Between-subject factors:
+// 1. Info about contribution (7 levels)
+// 2. Focal user contribution level (2 levels: 85% lower or 85% higher than average)
+// Within-subject factors (randomized order):
+// 1. Team contribution (high: top 25%, low: bottom 25%)
+// 2. Individual leaderboard stability (high: 85% maintain ranks, low: 25% maintain ranks)
+// 3. Team leaderboard stability (high: 85% maintain ranks, low: 25% maintain ranks)
+
+// Experiment Configuration
 let experimentConfig = {
-  // Info Display Timing
-  infoDisplayTiming: 'eachRound', // 'eachRound' or 'endOnly'
+  // Between-subject: Info about contribution (7 levels)
+  infoType: 'noInfo', // 'noInfo', 'teamLB', 'indLBWithin', 'bothLBWithin', 'bothLBAcross', 'socialNorm', 'indLBAcross'
   
-  // What Info is Displayed
-  showTeamLeaderboard: false,
-  showIndividualLeaderboardWithinTeam: false,
-  showIndividualLeaderboardAcrossTeams: false,
+  // Between-subject: Focal user contribution level (2 levels)
+  focalUserContributionLevel: 'lower', // 'lower' (85% rounds lower than average) or 'higher' (85% rounds higher)
   
-  // Leaderboard Stability
-  leaderboardStability: 'stable', // 'stable' or 'dynamic'
+  // Within-subject: Team contribution (2 levels) - set per round from sequence
+  teamContribution: 'high', // 'high' (top 25%) or 'low' (bottom 25%)
   
-  // Social Norm Display
-  socialNormDisplay: 'none', // 'avgAndStdDev', 'avgOnly', 'none'
+  // Within-subject: Individual leaderboard stability (2 levels) - set per round from sequence
+  individualLBStability: 'high', // 'high' (85% maintain ranks) or 'low' (25% maintain ranks)
   
-  // Focal User Condition
-  focalUserCondition: 'random', // 'freeRider' or 'random'
+  // Within-subject: Team leaderboard stability (2 levels) - set per round from sequence
+  teamLBStability: 'high', // 'high' (85% maintain ranks) or 'low' (25% maintain ranks)
   
-  // Focal Member Team Rank
-  focalMemberTeamRank: 'middle', // 'high', 'middle', or 'low'
-  
-  // Team Leaderboard Ranking Stability
-  teamLeaderboardRankingStability: 'stable', // 'stable' or 'dynamic'
+  // Cell assignment
+  betweenSubjectCell: null, // 1-14
+  withinSubjectSequence: [], // Randomized sequence of within-subject factor combinations per round
   
   // Testing Feature
-  showTreatmentConditionsIcon: true, // Show treatment conditions icon (for testing)
+  showCellDisplay: true, // Show cell assignment (admin-configurable)
   
   // Simulated Team Members
   simulatedTeamSize: 3, // Number of simulated team members (total group size = 4)
-  simulatedTeamContributions: [] // Will be generated based on condition
 };
 
 // Initialize on page load
@@ -186,23 +190,127 @@ function updateTreatmentConditionsIcon() {
   const listEl = document.getElementById('treatmentConditionsList');
   
   if (iconEl) {
-    iconEl.style.display = experimentConfig.showTreatmentConditionsIcon ? 'inline-block' : 'none';
+    iconEl.style.display = experimentConfig.showCellDisplay ? 'inline-block' : 'none';
   }
   
   if (listEl && experimentConfig) {
+    const infoTypeLabels = {
+      'noInfo': 'No Info',
+      'teamLB': 'Team Leaderboard Only',
+      'indLBWithin': 'Individual LB (Within Team) Only',
+      'bothLBWithin': 'Both Team & Ind LB (Within Team)',
+      'bothLBAcross': 'Both Team & Ind LB (Across Teams)',
+      'socialNorm': 'Social Norm (Avg Team & Own)',
+      'indLBAcross': 'Individual LB (Across Teams) Only'
+    };
+    
     const conditions = [
-      `Info Timing: ${experimentConfig.infoDisplayTiming || 'N/A'}`,
-      `Focal Condition: ${experimentConfig.focalUserCondition || 'N/A'}`,
-      `LB Stability: ${experimentConfig.leaderboardStability || 'N/A'}`,
-      `Social Norm: ${experimentConfig.socialNormDisplay || 'N/A'}`,
-      `Team Rank: ${experimentConfig.focalMemberTeamRank || 'N/A'}`,
-      `Team Rank Stability: ${experimentConfig.teamLeaderboardRankingStability || 'N/A'}`,
-      `Team LB: ${experimentConfig.showTeamLeaderboard ? 'Yes' : 'No'}`,
-      `Ind LB (Team): ${experimentConfig.showIndividualLeaderboardWithinTeam ? 'Yes' : 'No'}`,
-      `Ind LB (All): ${experimentConfig.showIndividualLeaderboardAcrossTeams ? 'Yes' : 'No'}`
+      `<strong>Between-Subject Cell: ${experimentConfig.betweenSubjectCell || 'N/A'}</strong>`,
+      `Info Type: ${infoTypeLabels[experimentConfig.infoType] || experimentConfig.infoType || 'N/A'}`,
+      `Focal User Level: ${experimentConfig.focalUserContributionLevel === 'lower' ? '85% Lower' : '85% Higher'}`,
+      `<strong>Round ${currentRound} Within-Subject:</strong>`,
+      `Team Contribution: ${experimentConfig.teamContribution === 'high' ? 'High (Top 25%)' : 'Low (Bottom 25%)'}`,
+      `Ind LB Stability: ${experimentConfig.individualLBStability === 'high' ? 'High (85%)' : 'Low (25%)'}`,
+      `Team LB Stability: ${experimentConfig.teamLBStability === 'high' ? 'High (85%)' : 'Low (25%)'}`
     ];
     
     listEl.innerHTML = conditions.map(c => `<li>${c}</li>`).join('');
+  }
+}
+
+// Update cell display
+function updateCellDisplay() {
+  const cellDisplayEl = document.getElementById('cellDisplay');
+  if (cellDisplayEl && experimentConfig.betweenSubjectCell) {
+    const infoTypeLabels = {
+      'noInfo': 'No Info',
+      'teamLB': 'Team LB',
+      'indLBWithin': 'Ind LB (Team)',
+      'bothLBWithin': 'Both (Team)',
+      'bothLBAcross': 'Both (All)',
+      'socialNorm': 'Social Norm',
+      'indLBAcross': 'Ind LB (All)'
+    };
+    
+    const focalLabel = experimentConfig.focalUserContributionLevel === 'lower' ? '85% Lower' : '85% Higher';
+    const teamContrib = experimentConfig.teamContribution === 'high' ? 'High' : 'Low';
+    const indStab = experimentConfig.individualLBStability === 'high' ? 'H' : 'L';
+    const teamStab = experimentConfig.teamLBStability === 'high' ? 'H' : 'L';
+    
+    cellDisplayEl.innerHTML = `
+      <strong>Cell ${experimentConfig.betweenSubjectCell}</strong>: ${infoTypeLabels[experimentConfig.infoType]} | ${focalLabel}<br>
+      Round ${currentRound}: Team ${teamContrib} | Ind ${indStab} | Team ${teamStab}
+    `;
+    cellDisplayEl.style.display = experimentConfig.showCellDisplay ? 'block' : 'none';
+  }
+}
+
+// Update info display based on infoType
+function updateInfoDisplay() {
+  // Hide all info panels initially
+  const teamLBPanel = document.getElementById('teamLeaderboardPanel');
+  const indLBPanel = document.getElementById('individualLeaderboardPanel');
+  const socialNormPanel = document.getElementById('socialNormPanel');
+  
+  if (teamLBPanel) teamLBPanel.classList.add('hidden');
+  if (indLBPanel) indLBPanel.classList.add('hidden');
+  if (socialNormPanel) socialNormPanel.classList.add('hidden');
+  
+  // Show info based on infoType
+  switch (experimentConfig.infoType) {
+    case 'noInfo':
+      // No info shown
+      break;
+    case 'teamLB':
+      // Only team leaderboard
+      if (teamLBPanel) {
+        loadTeamLeaderboard();
+        teamLBPanel.classList.remove('hidden');
+      }
+      break;
+    case 'indLBWithin':
+      // Only individual leaderboard within team
+      if (indLBPanel) {
+        loadIndividualLeaderboard();
+        indLBPanel.classList.remove('hidden');
+      }
+      break;
+    case 'bothLBWithin':
+      // Both team and individual leaderboard (within team)
+      if (teamLBPanel) {
+        loadTeamLeaderboard();
+        teamLBPanel.classList.remove('hidden');
+      }
+      if (indLBPanel) {
+        loadIndividualLeaderboard();
+        indLBPanel.classList.remove('hidden');
+      }
+      break;
+    case 'bothLBAcross':
+      // Both team and individual leaderboard (across teams)
+      if (teamLBPanel) {
+        loadTeamLeaderboard();
+        teamLBPanel.classList.remove('hidden');
+      }
+      if (indLBPanel) {
+        loadIndividualLeaderboardAcrossTeams();
+        indLBPanel.classList.remove('hidden');
+      }
+      break;
+    case 'socialNorm':
+      // Social norm (average team and own)
+      if (socialNormPanel) {
+        showSocialNorm();
+        socialNormPanel.classList.remove('hidden');
+      }
+      break;
+    case 'indLBAcross':
+      // Only individual leaderboard across teams
+      if (indLBPanel) {
+        loadIndividualLeaderboardAcrossTeams();
+        indLBPanel.classList.remove('hidden');
+      }
+      break;
   }
 }
 
@@ -211,6 +319,80 @@ function generateUniqueId() {
   const timestamp = Date.now();
   const random = Math.random().toString(36).substring(2, 8).toUpperCase();
   return `UID-${timestamp}-${random}`;
+}
+
+// Define all 14 between-subject cells (7 info types × 2 focal user contribution levels)
+const BETWEEN_SUBJECT_CELLS = [
+  // Cell 1-7: Focal user 85% rounds LOWER than average
+  { infoType: 'noInfo', focalUserContributionLevel: 'lower' }, // Cell 1
+  { infoType: 'teamLB', focalUserContributionLevel: 'lower' }, // Cell 2
+  { infoType: 'indLBWithin', focalUserContributionLevel: 'lower' }, // Cell 3
+  { infoType: 'bothLBWithin', focalUserContributionLevel: 'lower' }, // Cell 4
+  { infoType: 'bothLBAcross', focalUserContributionLevel: 'lower' }, // Cell 5
+  { infoType: 'socialNorm', focalUserContributionLevel: 'lower' }, // Cell 6
+  { infoType: 'indLBAcross', focalUserContributionLevel: 'lower' }, // Cell 7
+  
+  // Cell 8-14: Focal user 85% rounds HIGHER than average
+  { infoType: 'noInfo', focalUserContributionLevel: 'higher' }, // Cell 8
+  { infoType: 'teamLB', focalUserContributionLevel: 'higher' }, // Cell 9
+  { infoType: 'indLBWithin', focalUserContributionLevel: 'higher' }, // Cell 10
+  { infoType: 'bothLBWithin', focalUserContributionLevel: 'higher' }, // Cell 11
+  { infoType: 'bothLBAcross', focalUserContributionLevel: 'higher' }, // Cell 12
+  { infoType: 'socialNorm', focalUserContributionLevel: 'higher' }, // Cell 13
+  { infoType: 'indLBAcross', focalUserContributionLevel: 'higher' }, // Cell 14
+];
+
+// Generate all possible within-subject factor combinations (2×2×2 = 8 combinations)
+function generateWithinSubjectCombinations() {
+  const combinations = [];
+  const teamContribs = ['high', 'low'];
+  const indStabilities = ['high', 'low'];
+  const teamStabilities = ['high', 'low'];
+  
+  for (const teamContrib of teamContribs) {
+    for (const indStab of indStabilities) {
+      for (const teamStab of teamStabilities) {
+        combinations.push({
+          teamContribution: teamContrib,
+          individualLBStability: indStab,
+          teamLBStability: teamStab
+        });
+      }
+    }
+  }
+  return combinations;
+}
+
+// Randomly assign participant to one of 14 between-subject cells
+function assignBetweenSubjectCell() {
+  const cellIndex = Math.floor(Math.random() * BETWEEN_SUBJECT_CELLS.length);
+  const cell = BETWEEN_SUBJECT_CELLS[cellIndex];
+  return {
+    cellNumber: cellIndex + 1,
+    ...cell
+  };
+}
+
+// Generate randomized sequence of within-subject factor combinations for all rounds
+function generateWithinSubjectSequence(totalRounds) {
+  const allCombinations = generateWithinSubjectCombinations();
+  const sequence = [];
+  
+  // For totalRounds, we need to distribute 8 combinations
+  // Some combinations will appear more than once
+  for (let i = 0; i < totalRounds; i++) {
+    // Randomly select a combination
+    const randomIndex = Math.floor(Math.random() * allCombinations.length);
+    sequence.push({ ...allCombinations[randomIndex] });
+  }
+  
+  // Shuffle the sequence to randomize order
+  for (let i = sequence.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [sequence[i], sequence[j]] = [sequence[j], sequence[i]];
+  }
+  
+  return sequence;
 }
 
 async function startExperiment() {
@@ -246,7 +428,15 @@ async function startExperiment() {
       // New participant - generate unique ID
       uniqueParticipantId = generateUniqueId();
       
-      // New participant - use experiment config from settings
+      // Randomly assign to one of 14 between-subject cells
+      const cellAssignment = assignBetweenSubjectCell();
+      experimentConfig.betweenSubjectCell = cellAssignment.cellNumber;
+      experimentConfig.infoType = cellAssignment.infoType;
+      experimentConfig.focalUserContributionLevel = cellAssignment.focalUserContributionLevel;
+      
+      // Generate randomized sequence of within-subject factor combinations
+      experimentConfig.withinSubjectSequence = generateWithinSubjectSequence(totalRounds);
+      
       // Assign to group (same group for all rounds)
       groupId = await assignToGroup(participantId);
       
@@ -264,6 +454,16 @@ async function startExperiment() {
         experimentConfig: experimentConfig,
         createdAt: firebase.firestore.FieldValue.serverTimestamp(),
         status: 'active'
+      });
+      
+      // Track cell assignment for balance
+      await db.collection('cellAssignments').add({
+        participantId,
+        uniqueParticipantId,
+        betweenSubjectCell: cellAssignment.cellNumber,
+        infoType: cellAssignment.infoType,
+        focalUserContributionLevel: cellAssignment.focalUserContributionLevel,
+        timestamp: firebase.firestore.FieldValue.serverTimestamp()
       });
     }
     
@@ -391,41 +591,43 @@ async function getSimulatedTeamContributions(focalUserContribution) {
   // Calculate average of simulated members
   const simAvg = contributions.reduce((sum, c) => sum + c.contribution, 0) / contributions.length;
   
-  // Adjust based on focal user condition
-  if (experimentConfig.focalUserCondition === 'freeRider') {
-    // Focal user is always much lower - make simulated members contribute more
-    const targetAvg = focalUserContribution + (endowment * 0.4); // Simulated members contribute 40% more on average
-    const adjustment = targetAvg - simAvg;
-    
-    contributions.forEach(c => {
-      adjustedContributions.push({
-        ...c,
-        contribution: Math.max(0, Math.min(endowment, Math.round(c.contribution + adjustment)))
-      });
-    });
-  } else {
-    // Random condition - sometimes higher, sometimes lower, sometimes same
-    const randomFactor = Math.random();
-    let adjustment;
-    
-    if (randomFactor < 0.33) {
-      // Focal user higher than average
-      adjustment = (focalUserContribution - simAvg) * 0.8; // Simulated members slightly lower
-    } else if (randomFactor < 0.66) {
-      // Focal user lower than average
-      adjustment = (focalUserContribution - simAvg) * 0.8; // Simulated members slightly higher
+  // Adjust based on focal user contribution level (85% rounds lower or higher than average)
+  // Track which rounds should be lower/higher to ensure 85% compliance
+  const roundsSoFar = currentRound;
+  const totalRoundsForCondition = totalRounds;
+  const targetLowerRounds = Math.floor(totalRoundsForCondition * 0.85);
+  const roundsLower = Math.floor((roundsSoFar / totalRoundsForCondition) * targetLowerRounds);
+  const shouldBeLower = roundsLower < targetLowerRounds;
+  
+  let adjustment;
+  if (experimentConfig.focalUserContributionLevel === 'lower') {
+    // 85% rounds: focal user lower than average
+    if (shouldBeLower || Math.random() < 0.85) {
+      // Make simulated members contribute more so focal user is lower
+      const targetAvg = focalUserContribution + (endowment * 0.3); // Simulated members contribute 30% more
+      adjustment = targetAvg - simAvg;
     } else {
-      // Focal user similar to average
-      adjustment = 0; // Keep similar
+      // 15% rounds: can be similar or higher (for variety)
+      adjustment = (focalUserContribution - simAvg) * 0.5;
     }
-    
-    contributions.forEach(c => {
-      adjustedContributions.push({
-        ...c,
-        contribution: Math.max(0, Math.min(endowment, Math.round(c.contribution + adjustment)))
-      });
-    });
+  } else {
+    // 85% rounds: focal user higher than average
+    if (!shouldBeLower || Math.random() < 0.85) {
+      // Make simulated members contribute less so focal user is higher
+      const targetAvg = Math.max(0, focalUserContribution - (endowment * 0.3)); // Simulated members contribute 30% less
+      adjustment = targetAvg - simAvg;
+    } else {
+      // 15% rounds: can be similar or lower (for variety)
+      adjustment = (focalUserContribution - simAvg) * 0.5;
+    }
   }
+  
+  contributions.forEach(c => {
+    adjustedContributions.push({
+      ...c,
+      contribution: Math.max(0, Math.min(endowment, Math.round(c.contribution + adjustment)))
+    });
+  });
   
   return adjustedContributions;
 }
@@ -437,6 +639,17 @@ async function loadRound() {
     showEndScreen();
     return;
   }
+  
+  // Set within-subject factors for this round from the randomized sequence
+  if (experimentConfig.withinSubjectSequence && experimentConfig.withinSubjectSequence.length >= currentRound) {
+    const roundFactors = experimentConfig.withinSubjectSequence[currentRound - 1];
+    experimentConfig.teamContribution = roundFactors.teamContribution;
+    experimentConfig.individualLBStability = roundFactors.individualLBStability;
+    experimentConfig.teamLBStability = roundFactors.teamLBStability;
+  }
+  
+  // Update cell display
+  updateCellDisplay();
   
   // Reset UI
   document.getElementById('currentRound').textContent = currentRound;
@@ -478,18 +691,8 @@ async function loadRound() {
     startTimer();
   }
   
-  // Update treatment panels visibility
-  updateTreatmentPanels();
-  
-  // Load leaderboards if timing is each round
-  if (experimentConfig.infoDisplayTiming === 'eachRound') {
-    await loadLeaderboards();
-    
-    // Show social norm if enabled
-    if (experimentConfig.socialNormDisplay !== 'none') {
-      await showSocialNorm();
-    }
-  }
+  // Update info display based on infoType
+  updateInfoDisplay();
 }
 
 async function getCurrentRound() {
@@ -1002,12 +1205,8 @@ async function loadIndividualLeaderboard() {
 }
 
 function updateTreatmentPanels() {
-  // Update based on experiment config and timing
-  const showInfo = experimentConfig.infoDisplayTiming === 'eachRound';
-  
-  document.getElementById('teamLeaderboardPanel').classList.toggle('hidden', !showInfo || !experimentConfig.showTeamLeaderboard);
-  document.getElementById('individualLeaderboardPanel').classList.toggle('hidden', !showInfo || !experimentConfig.showIndividualLeaderboardAcrossTeams);
-  document.getElementById('contributionComparisonPanel').classList.toggle('hidden', !showInfo);
+  // This function is now replaced by updateInfoDisplay() which uses infoType
+  // Keeping for backward compatibility but it's handled in updateInfoDisplay()
 }
 
 // Load all leaderboards for the leaderboard tab
@@ -1017,24 +1216,32 @@ async function loadLeaderboards() {
   
   leaderboardContent.innerHTML = '';
   
-  // Load team leaderboard if enabled
-  if (experimentConfig.showTeamLeaderboard) {
-    await loadTeamLeaderboardForTab();
-  }
-  
-  // Load individual leaderboard within team if enabled
-  if (experimentConfig.showIndividualLeaderboardWithinTeam) {
-    await loadIndividualLeaderboardWithinTeam();
-  }
-  
-  // Load individual leaderboard across teams if enabled
-  if (experimentConfig.showIndividualLeaderboardAcrossTeams) {
-    await loadIndividualLeaderboardAcrossTeams();
-  }
-  
-  // Show social norm if enabled
-  if (experimentConfig.socialNormDisplay !== 'none') {
-    await showSocialNorm();
+  // Load based on infoType
+  switch (experimentConfig.infoType) {
+    case 'teamLB':
+      await loadTeamLeaderboardForTab();
+      break;
+    case 'indLBWithin':
+      await loadIndividualLeaderboardWithinTeam();
+      break;
+    case 'bothLBWithin':
+      await loadTeamLeaderboardForTab();
+      await loadIndividualLeaderboardWithinTeam();
+      break;
+    case 'bothLBAcross':
+      await loadTeamLeaderboardForTab();
+      await loadIndividualLeaderboardAcrossTeams();
+      break;
+    case 'socialNorm':
+      await showSocialNorm();
+      break;
+    case 'indLBAcross':
+      await loadIndividualLeaderboardAcrossTeams();
+      break;
+    case 'noInfo':
+    default:
+      // No leaderboards shown
+      break;
   }
 }
 

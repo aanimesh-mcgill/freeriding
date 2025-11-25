@@ -63,6 +63,14 @@ service cloud.firestore {
       allow delete: if false;
     }
     
+    // Cell Assignments - allow read/write for all (tracking cell assignments)
+    match /cellAssignments/{assignmentId} {
+      allow read: if true;
+      allow create: if true;
+      allow update: if false;
+      allow delete: if false;
+    }
+    
     // Default deny all other documents
     match /{document=**} {
       allow read, write: if false;
