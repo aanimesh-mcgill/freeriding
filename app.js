@@ -1660,8 +1660,16 @@ async function loadTeamLeaderboardForTab() {
   `;
   leaderboardContent.appendChild(section);
   
-  // Get all groups and their total contributions
-  const groupsSnapshot = await db.collection('groups').get();
+  // Get all groups for this user's experiment session only
+  const userGroupsSnapshot = await db.collection('groups')
+    .where('participantId', '==', participantId)
+    .get();
+  
+  // Fallback if no groups found with participantId
+  const groupsSnapshot = userGroupsSnapshot.empty 
+    ? await db.collection('groups').get() 
+    : userGroupsSnapshot;
+  
   const groupTotals = {}; // Cumulative totals
   const groupRoundTotals = {}; // Current round totals
   
