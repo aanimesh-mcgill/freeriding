@@ -177,13 +177,9 @@ async function saveSettings() {
 }
 
 async function loadDashboardData() {
-  await Promise.all([
-    loadStatistics(),
-    loadParticipants(),
-    loadGroups(),
-    loadRoundData(),
-    loadTreatmentDistribution()
-  ]);
+  loadStatistics();
+  loadTreatmentDistribution();
+  // Participants are now loaded via search only
 }
 
 async function loadStatistics() {
