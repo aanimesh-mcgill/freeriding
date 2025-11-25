@@ -1167,7 +1167,7 @@ async function loadTeamLeaderboard() {
       targetRank = bottom25Percent; // Bottom 25%
     }
   } else {
-    // Allow rank to change (15% or 75% of rounds depending on stability level)
+    // Allow rank to change (50% of rounds for both high and low stability)
     if (experimentConfig.teamContribution === 'high') {
       // High condition: target top 25%
       targetRank = Math.floor(Math.random() * top25Percent) + 1;
@@ -1215,7 +1215,16 @@ async function loadTeamLeaderboard() {
   allTeams.slice(0, 10).forEach((team, index) => {
     const row = tbody.insertRow();
     row.insertCell(0).textContent = index + 1;
-    const teamName = team.isSimulated ? `Team ${team.id.substring(9)}` : `Group ${team.id.substring(0, 8)}`;
+    let teamName;
+    if (team.isFocal) {
+      teamName = 'Your Team';
+    } else if (team.isSimulated) {
+      const teamNum = parseInt(team.id.substring(9)) || 0;
+      teamName = `Team ${teamNum + 1}`;
+    } else {
+      const teamNum = Math.abs(team.id.split('').reduce((a, b) => { a = ((a << 5) - a) + b.charCodeAt(0); return a & a; }, 0)) % totalTeams;
+      teamName = `Team ${teamNum + 1}`;
+    }
     row.insertCell(1).textContent = teamName;
     row.insertCell(2).textContent = team.total;
     if (team.isFocal) {
@@ -1374,7 +1383,7 @@ async function loadTeamLeaderboardForTab() {
       targetRank = bottom25Percent; // Bottom 25%
     }
   } else {
-    // Allow rank to change (15% or 75% of rounds depending on stability level)
+    // Allow rank to change (50% of rounds for both high and low stability)
     if (experimentConfig.teamContribution === 'high') {
       // High condition: target top 25%
       targetRank = Math.floor(Math.random() * top25Percent) + 1;
@@ -1437,7 +1446,16 @@ async function loadTeamLeaderboardForTab() {
   allTeams.slice(0, 10).forEach((team, index) => {
     const row = tbody.insertRow();
     row.insertCell(0).textContent = index + 1;
-    const teamName = team.isSimulated ? `Team ${team.id.substring(9)}` : `Group ${team.id.substring(0, 8)}`;
+    let teamName;
+    if (team.isFocal) {
+      teamName = 'Your Team';
+    } else if (team.isSimulated) {
+      const teamNum = parseInt(team.id.substring(9)) || 0;
+      teamName = `Team ${teamNum + 1}`;
+    } else {
+      const teamNum = Math.abs(team.id.split('').reduce((a, b) => { a = ((a << 5) - a) + b.charCodeAt(0); return a & a; }, 0)) % totalTeams;
+      teamName = `Team ${teamNum + 1}`;
+    }
     row.insertCell(1).textContent = teamName;
     row.insertCell(2).textContent = team.total;
     
