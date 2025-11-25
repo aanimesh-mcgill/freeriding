@@ -2077,7 +2077,7 @@ async function loadIndividualLeaderboardAcrossTeams() {
         displayName = 'You';
       } else if (player.id.startsWith('SIM_')) {
         // Get team number for this member's group
-        const teamNum = teamNumberMap.get(player.groupId) || 5;
+        const teamNum = teamNumberMap.get(player.groupId) || 3;
         displayName = `Team ${teamNum} Member ${player.memberNum}`;
       } else {
         displayName = `Team Member ${player.id}`;
