@@ -285,61 +285,73 @@
         </div>
       </section>
 
-      <!-- Participants Table -->
+      <!-- Participant Search -->
       <section class="admin-section">
-        <h2>Participants</h2>
-        <div class="table-container">
-          <table class="data-table">
-            <thead>
-              <tr>
-                <th>Participant ID</th>
-                <th>Group</th>
-                <th>Current Round</th>
-                <th>Total Contribution</th>
-                <th>Cumulative Payoff</th>
-                <th>Treatment Conditions</th>
-                <th>Status</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody id="participantsTableBody">
-            </tbody>
-          </table>
+        <h2>Participant Search</h2>
+        <div style="margin-bottom: 20px;">
+          <div style="display: flex; gap: 10px; align-items: center;">
+            <input 
+              type="text" 
+              id="participantSearchInput" 
+              placeholder="Enter Participant ID or Unique ID to search..."
+              style="flex: 1; padding: 10px; border: 2px solid #e0e0e0; border-radius: 6px; font-size: 14px;"
+            >
+            <button id="searchParticipantBtn" class="btn btn-primary">Search</button>
+            <button id="clearSearchBtn" class="btn btn-secondary">Clear</button>
+          </div>
+          <small style="color: #666; margin-top: 5px; display: block;">
+            Search by Participant ID (e.g., SYNTH_1_1_...) or Unique ID (e.g., UID-...)
+          </small>
         </div>
-      </section>
-
-      <!-- Groups Overview -->
-      <section class="admin-section">
-        <h2>Groups</h2>
-        <div class="groups-container" id="groupsContainer">
-        </div>
-      </section>
-
-      <!-- Round-by-Round Data -->
-      <section class="admin-section">
-        <h2>Round-by-Round Data</h2>
-        <div class="round-selector">
-          <label>Select Round:</label>
-          <select id="roundSelector">
-            <option value="all">All Rounds</option>
-          </select>
-        </div>
-        <div class="table-container">
-          <table class="data-table">
-            <thead>
-              <tr>
-                <th>Round</th>
-                <th>Participant</th>
-                <th>Group</th>
-                <th>Contribution</th>
-                <th>Group Total</th>
-                <th>Payoff</th>
-                <th>Timestamp</th>
-              </tr>
-            </thead>
-            <tbody id="roundsTableBody">
-            </tbody>
-          </table>
+        
+        <!-- Participant Details (shown after search) -->
+        <div id="participantDetailsSection" style="display: none;">
+          <!-- Basic Info -->
+          <div class="info-card" style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+            <h3 style="color: #667eea; margin-top: 0;">Participant Information</h3>
+            <div id="participantBasicInfo"></div>
+          </div>
+          
+          <!-- Competing Teams -->
+          <div class="info-card" style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+            <h3 style="color: #667eea; margin-top: 0;">Competing Teams (10 Teams)</h3>
+            <div id="competingTeamsContainer"></div>
+          </div>
+          
+          <!-- Team Members -->
+          <div class="info-card" style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+            <h3 style="color: #667eea; margin-top: 0;">Team Members</h3>
+            <div id="teamMembersContainer"></div>
+          </div>
+          
+          <!-- Rounds with Filter -->
+          <div class="info-card" style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+            <h3 style="color: #667eea; margin-top: 0;">Rounds</h3>
+            <div style="margin-bottom: 15px;">
+              <label style="margin-right: 10px;">Filter by Round:</label>
+              <select id="participantRoundFilter" style="padding: 5px 10px; border: 2px solid #e0e0e0; border-radius: 4px;">
+                <option value="all">All Rounds</option>
+              </select>
+            </div>
+            <div class="table-container">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Round</th>
+                    <th>Contribution</th>
+                    <th>Group Total</th>
+                    <th>Group Share</th>
+                    <th>Kept</th>
+                    <th>Payoff</th>
+                    <th>Cumulative Payoff</th>
+                    <th>Treatment Conditions</th>
+                  </tr>
+                </thead>
+                <tbody id="participantRoundsTableBody">
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
       </section>
 
