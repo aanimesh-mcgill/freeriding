@@ -393,15 +393,24 @@ async function exportToExcel() {
       const payoffKey = `${data.participantId}_${data.round}`;
       const payoff = payoffsMap.get(payoffKey);
       
-      const treatments = [];
-      if (participant?.showTeamLeaderboard) treatments.push('TeamLB');
-      if (participant?.showIndividualLeaderboard) treatments.push('IndLB');
-      if (participant?.showContributionComparison) treatments.push('Comp');
+      // Get treatment conditions from contribution record (most accurate)
+      const treatments = data.treatmentConditions || participant?.experimentConfig || {};
       
       const groupTotalKey = `${data.groupId}_${data.round}`;
       const groupTotal = groupTotalsMap.get(groupTotalKey) || 0;
       
-      csv += `${data.participantId},${data.groupId},${data.round},${data.contribution},${groupTotal},${payoff?.payoff || 'N/A'},${participant?.cumulativePayoff || 0},${treatments.join(';')}\n`;
+      // Extract treatment values for CSV columns
+      const infoTiming = treatments?.infoDisplayTiming || 'N/A';
+      const focalCond = treatments?.focalUserCondition || 'N/A';
+      const lbStability = treatments?.leaderboardStability || 'N/A';
+      const socialNorm = treatments?.socialNormDisplay || 'N/A';
+      const teamRank = treatments?.focalMemberTeamRank || 'N/A';
+      const teamRankStability = treatments?.teamLeaderboardRankingStability || 'N/A';
+      const teamLB = treatments?.showTeamLeaderboard ? 'Y' : 'N';
+      const indLBTeam = treatments?.showIndividualLeaderboardWithinTeam ? 'Y' : 'N';
+      const indLBAll = treatments?.showIndividualLeaderboardAcrossTeams ? 'Y' : 'N';
+      
+      csv += `${data.participantId},${data.groupId},${data.round},${data.contribution},${groupTotal},${payoff?.payoff || 'N/A'},${participant?.cumulativePayoff || 0},${infoTiming},${focalCond},${lbStability},${socialNorm},${teamRank},${teamRankStability},${teamLB},${indLBTeam},${indLBAll}\n`;
     });
     
     // Download CSV
