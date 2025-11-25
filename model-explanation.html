@@ -467,22 +467,53 @@
     </div>
     
     <div class="model-section">
+      <h2>Clustered Standard Errors</h2>
+      
+      <p>
+        The current implementation uses <strong>clustered standard errors</strong> at the participant level to account for 
+        correlation of errors within the same participant across rounds. This is important because:
+      </p>
+      <ul>
+        <li>Multiple observations from the same participant are likely correlated</li>
+        <li>Standard OLS standard errors assume independence, which can lead to incorrect inference</li>
+        <li>Clustered standard errors provide robust inference even when errors are correlated within clusters</li>
+      </ul>
+      
+      <h3>Cluster-Robust Variance Estimator</h3>
+      <p>
+        The clustered standard errors use the cluster-robust variance estimator (also known as Huber-White standard errors):
+      </p>
+      <div class="equation">
+        <strong>V<sub>clustered</sub> = (X'X)<sup>-1</sup> × [Σ<sub>g</sub> (X<sub>g</sub>' × e<sub>g</sub> × e<sub>g</sub>' × X<sub>g</sub>)] × (X'X)<sup>-1</sup></strong>
+      </div>
+      <p>
+        where <strong>g</strong> indexes clusters (participants), <strong>X<sub>g</sub></strong> are the regressors for cluster g, 
+        and <strong>e<sub>g</sub></strong> are the residuals for cluster g.
+      </p>
+      
+      <p>
+        Degrees of freedom for t-tests are based on the number of clusters (participants) minus 1, which provides a more 
+        conservative test than using the total number of observations.
+      </p>
+    </div>
+    
+    <div class="model-section">
       <h2>Limitations and Future Extensions</h2>
       
       <h3>Current Limitations</h3>
       <ul>
-        <li>Pooled OLS assumes independence of observations, which may not hold for repeated observations from the same participant</li>
-        <li>No control for unobserved participant-level characteristics</li>
+        <li>No subject fixed effects to control for unobserved time-invariant participant characteristics</li>
         <li>Linear specification may not capture non-linear relationships</li>
+        <li>Clustered standard errors assume a large number of clusters for asymptotic validity</li>
       </ul>
       
       <h3>Potential Extensions</h3>
       <ul>
-        <li><strong>Fixed Effects:</strong> Control for time-invariant participant characteristics</li>
-        <li><strong>Random Effects:</strong> Account for participant-level heterogeneity</li>
+        <li><strong>Fixed Effects:</strong> Control for time-invariant participant characteristics by including participant dummy variables</li>
+        <li><strong>Random Effects:</strong> Account for participant-level heterogeneity with random intercepts</li>
         <li><strong>Interaction Terms:</strong> Test for differential effects of treatments across different conditions</li>
-        <li><strong>Non-linear Models:</strong> Account for bounded nature of contributions (0-20 tokens)</li>
-        <li><strong>Dynamic Panel Models:</strong> Better account for lagged dependent variable</li>
+        <li><strong>Non-linear Models:</strong> Account for bounded nature of contributions (0-20 tokens) using Tobit or censored regression</li>
+        <li><strong>Dynamic Panel Models:</strong> Better account for lagged dependent variable with Arellano-Bond or system GMM</li>
       </ul>
     </div>
     

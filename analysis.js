@@ -13,23 +13,30 @@ const firebaseConfig = {
 const app = firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 
-// Simple OLS Regression Implementation
+// OLS Regression with Clustered Standard Errors
 class SimpleRegression {
-  constructor() {
+  constructor(clusterVar = null) {
     this.X = [];
     this.y = [];
+    this.clusterVar = clusterVar; // Variable to cluster on (e.g., participantId)
+    this.clusterIds = []; // Cluster IDs for each observation
     this.coefficients = [];
     this.residuals = [];
     this.rSquared = 0;
     this.adjRSquared = 0;
     this.standardErrors = [];
+    this.clusteredStandardErrors = []; // Clustered standard errors
     this.tStats = [];
     this.pValues = [];
+    this.useClusteredSE = false; // Whether to use clustered SEs
   }
   
-  addData(x, y) {
+  addData(x, y, clusterId = null) {
     this.X.push(x);
     this.y.push(y);
+    if (this.clusterVar !== null && clusterId !== null) {
+      this.clusterIds.push(clusterId);
+    }
   }
   
   fit() {
@@ -65,7 +72,7 @@ class SimpleRegression {
     this.rSquared = 1 - (ssRes / ssTot);
     this.adjRSquared = 1 - ((1 - this.rSquared) * (n - 1) / (n - k));
     
-    // Calculate standard errors
+    // Calculate standard errors (non-clustered)
     const mse = ssRes / (n - k);
     const varCov = XtXInv.mul(mse);
     this.standardErrors = [];
@@ -73,11 +80,30 @@ class SimpleRegression {
       this.standardErrors.push(Math.sqrt(varCov.get(i, i)));
     }
     
+    // Calculate clustered standard errors if cluster variable is provided
+    if (this.clusterVar !== null && this.clusterIds.length === n) {
+      this.calculateClusteredStandardErrors(XMatrix, XtXInv);
+      this.useClusteredSE = true;
+    } else {
+      this.clusteredStandardErrors = [...this.standardErrors];
+      this.useClusteredSE = false;
+    }
+    
+    // Use clustered SEs if available, otherwise use regular SEs
+    const seToUse = this.useClusteredSE ? this.clusteredStandardErrors : this.standardErrors;
+    
     // Calculate t-statistics and p-values
-    this.tStats = this.coefficients.map((coef, i) => coef / this.standardErrors[i]);
+    this.tStats = this.coefficients.map((coef, i) => coef / seToUse[i]);
+    
+    // For clustered SEs, use number of clusters - 1 as degrees of freedom
+    let df = n - k;
+    if (this.useClusteredSE) {
+      const numClusters = new Set(this.clusterIds).size;
+      df = numClusters - 1; // Conservative: clusters - 1
+    }
+    
     this.pValues = this.tStats.map(t => {
       // Two-tailed t-test p-value approximation
-      const df = n - k;
       const absT = Math.abs(t);
       // Simplified p-value calculation (for df > 30, use normal approximation)
       if (df > 30) {
@@ -92,6 +118,67 @@ class SimpleRegression {
         return p;
       }
     });
+  }
+  
+  // Calculate clustered standard errors (cluster-robust variance estimator)
+  calculateClusteredStandardErrors(XMatrix, XtXInv) {
+    const n = this.X.length;
+    const k = this.coefficients.length;
+    const residuals = this.residuals;
+    
+    // Group observations by cluster
+    const clusters = new Map();
+    for (let i = 0; i < n; i++) {
+      const clusterId = this.clusterIds[i];
+      if (!clusters.has(clusterId)) {
+        clusters.set(clusterId, []);
+      }
+      clusters.get(clusterId).push(i);
+    }
+    
+    // Calculate cluster-robust variance-covariance matrix
+    // V_clustered = (X'X)^(-1) * [Σ_g (X_g' * e_g * e_g' * X_g)] * (X'X)^(-1)
+    // where g indexes clusters, e_g are residuals for cluster g
+    
+    const Xt = XMatrix.transpose();
+    let clusterSum = mlMatrix.Matrix.zeros(k, k);
+    
+    // Sum over clusters
+    for (const [clusterId, indices] of clusters.entries()) {
+      // Get X_g and e_g for this cluster
+      const clusterSize = indices.length;
+      const Xg = mlMatrix.Matrix.zeros(clusterSize, k);
+      const eg = [];
+      
+      for (let j = 0; j < clusterSize; j++) {
+        const idx = indices[j];
+        for (let col = 0; col < k; col++) {
+          Xg.set(j, col, this.X[idx][col]);
+        }
+        eg.push(residuals[idx]);
+      }
+      
+      // Calculate X_g' * e_g * e_g' * X_g
+      // This is equivalent to: X_g' * (e_g * e_g') * X_g
+      // For efficiency, we compute: (X_g' * e_g) * (e_g' * X_g)
+      const Xgt = Xg.transpose();
+      const Xgte = Xgt.mmul(mlMatrix.Matrix.from1DArray(clusterSize, 1, eg));
+      const egXg = mlMatrix.Matrix.from1DArray(1, clusterSize, eg).mmul(Xg);
+      
+      // X_g' * e_g * e_g' * X_g = (X_g' * e_g) * (e_g' * X_g)
+      const clusterTerm = Xgte.mmul(egXg);
+      clusterSum = clusterSum.add(clusterTerm);
+    }
+    
+    // Calculate clustered variance-covariance matrix
+    // V_clustered = (X'X)^(-1) * clusterSum * (X'X)^(-1)
+    const clusteredVarCov = XtXInv.mmul(clusterSum).mmul(XtXInv);
+    
+    // Extract clustered standard errors
+    this.clusteredStandardErrors = [];
+    for (let i = 0; i < k; i++) {
+      this.clusteredStandardErrors.push(Math.sqrt(clusteredVarCov.get(i, i)));
+    }
   }
   
   // Error function approximation
@@ -151,14 +238,21 @@ class SimpleRegression {
   }
   
   getResults() {
+    const numClusters = this.clusterVar !== null && this.clusterIds.length > 0 
+      ? new Set(this.clusterIds).size 
+      : null;
+    
     return {
       coefficients: this.coefficients,
       standardErrors: this.standardErrors,
+      clusteredStandardErrors: this.clusteredStandardErrors,
+      useClusteredSE: this.useClusteredSE,
       tStats: this.tStats,
       pValues: this.pValues,
       rSquared: this.rSquared,
       adjRSquared: this.adjRSquared,
-      n: this.X.length
+      n: this.X.length,
+      numClusters: numClusters
     };
   }
 }
@@ -321,12 +415,12 @@ async function runStatisticalAnalysis() {
     // Store regression data for download
     currentRegressionData = regressionData;
     
-    // Run regression
-    console.log('Running regression...');
-    const regression = new SimpleRegression();
+    // Run regression with clustered standard errors at participant level
+    console.log('Running regression with clustered standard errors...');
+    const regression = new SimpleRegression('participantId');
     
     regressionData.forEach(d => {
-      regression.addData(d.features, d.contribution);
+      regression.addData(d.features, d.contribution, d.participantId);
     });
     
     regression.fit();
@@ -355,12 +449,23 @@ async function runStatisticalAnalysis() {
 function displayResults(results, variableNames, n) {
   const resultsContent = document.getElementById('resultsContent');
   
-  let html = `
+    const seType = results.useClusteredSE ? 'Clustered' : 'Standard';
+    const seNote = results.useClusteredSE 
+      ? ` (clustered at participant level, ${results.numClusters} clusters)`
+      : '';
+    
+    let html = `
     <div class="model-summary">
       <div class="model-summary-item">
         <span class="model-summary-label">Observations (N):</span>
         <span>${n}</span>
       </div>
+      ${results.numClusters ? `
+      <div class="model-summary-item">
+        <span class="model-summary-label">Clusters:</span>
+        <span>${results.numClusters}</span>
+      </div>
+      ` : ''}
       <div class="model-summary-item">
         <span class="model-summary-label">R-squared:</span>
         <span>${(results.rSquared * 100).toFixed(2)}%</span>
@@ -368,6 +473,10 @@ function displayResults(results, variableNames, n) {
       <div class="model-summary-item">
         <span class="model-summary-label">Adjusted R-squared:</span>
         <span>${(results.adjRSquared * 100).toFixed(2)}%</span>
+      </div>
+      <div class="model-summary-item">
+        <span class="model-summary-label">Standard Errors:</span>
+        <span>${seType}${seNote}</span>
       </div>
     </div>
     
@@ -387,7 +496,7 @@ function displayResults(results, variableNames, n) {
   `;
   
   results.coefficients.forEach((coef, i) => {
-    const se = results.standardErrors[i];
+    const se = results.useClusteredSE ? results.clusteredStandardErrors[i] : results.standardErrors[i];
     const tStat = results.tStats[i];
     const pVal = results.pValues[i];
     
@@ -434,6 +543,13 @@ function displayResults(results, variableNames, n) {
         <strong>Note:</strong> Coefficients represent the change in contribution (tokens) associated with a one-unit change in the predictor variable, 
         holding all other variables constant. Positive coefficients indicate higher contributions, negative coefficients indicate lower contributions.
       </p>
+      ${results.useClusteredSE ? `
+      <p style="margin-top: 10px;">
+        <strong>Clustered Standard Errors:</strong> Standard errors are clustered at the participant level to account for 
+        correlation of errors within the same participant across rounds. This provides more robust inference for panel data 
+        with multiple observations per participant. Degrees of freedom for t-tests are based on the number of clusters (${results.numClusters}).
+      </p>
+      ` : ''}
     </div>
   `;
   
