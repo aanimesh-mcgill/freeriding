@@ -1786,13 +1786,17 @@ async function loadTeamLeaderboardForTab() {
   const groupRoundTotals = {}; // Current round totals
   
   // Calculate focal team's cumulative and current round totals
+  // Only count contributions from rounds <= currentRound to ensure cumulative is correct
   let focalTeamTotal = 0;
   let focalTeamRoundTotal = 0;
   focalContributions.forEach(doc => {
     const contrib = doc.data().contribution;
-    focalTeamTotal += contrib;
-    if (doc.data().round === currentRound) {
-      focalTeamRoundTotal += contrib;
+    const contribRound = doc.data().round;
+    if (contribRound <= currentRound) {
+      focalTeamTotal += contrib;
+      if (contribRound === currentRound) {
+        focalTeamRoundTotal += contrib;
+      }
     }
   });
   
