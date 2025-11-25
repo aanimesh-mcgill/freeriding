@@ -2327,7 +2327,6 @@ async function loadIndividualLeaderboardAcrossTeams() {
     }
   }
   
-  const tbody = document.getElementById('individualAcrossTeamsBody');
   tbody.innerHTML = '';
   
   let lastDisplayedIndex = -1;
