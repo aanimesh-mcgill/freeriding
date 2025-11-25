@@ -1116,7 +1116,9 @@
         </div>
       `;
       
-      ${cell.infoType === 'socialNorm' ? `
+      // Add social norm logic section if applicable
+      if (cell.infoType === 'socialNorm') {
+        html += `
         <div class="logic-box">
           <strong>Social Norm Logic:</strong>
           <ul>
@@ -1139,7 +1141,8 @@
             <li><strong>Admin Configuration:</strong> Administrators can set socialNormAverageHigh, socialNormAverageLow, and socialNormStdDev</li>
           </ul>
         </div>
-      ` : ''}
+      `;
+      }
       
       // Data storage
       html += `
