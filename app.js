@@ -1456,20 +1456,25 @@ async function loadLeaderboards() {
   const leaderboardContent = document.getElementById('leaderboardContent');
   if (!leaderboardContent) return;
   
-  // Don't show leaderboards in round 1 (no data yet)
-  if (currentRound === 1) {
+  // Load leaderboards - they should be available after round completes
+  // Check if we have contribution data for current round to determine if round is complete
+  const contributionsSnapshot = await db.collection('contributions')
+    .where('groupId', '==', groupId)
+    .where('round', '==', currentRound)
+    .get();
+  
+  // If no contributions yet for this round, show waiting message
+  if (contributionsSnapshot.empty && currentRound === 1) {
     if (experimentConfig.infoType === 'noInfo') {
-      // No info - don't show anything in leaderboard tab
       leaderboardContent.innerHTML = '';
       return;
     } else if (experimentConfig.infoType === 'socialNorm') {
-      // Social norm - show generic message
       leaderboardContent.innerHTML = '<p style="text-align: center; color: #666; padding: 20px;">Information will be available after Round 1 is complete.</p>';
+      return;
     } else {
-      // Has leaderboard
       leaderboardContent.innerHTML = '<p style="text-align: center; color: #666; padding: 20px;">Leaderboard will be available after Round 1 is complete.</p>';
+      return;
     }
-    return;
   }
   
   leaderboardContent.innerHTML = '';
