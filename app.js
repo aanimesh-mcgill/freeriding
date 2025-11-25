@@ -570,8 +570,11 @@ async function generateSimulatedTeamContributions(groupId) {
   const numSimulated = experimentConfig.simulatedTeamSize;
   
   // Create simulated member IDs
-  for (let i = 1; i <= numSimulated; i++) {
-    simulatedMembers.push(`SIM_${groupId}_${i}`);
+  // User is member 5, so we create members 1-4 and 6 (skip 5)
+  for (let i = 1; i <= numSimulated + 1; i++) {
+    if (i !== 5) { // Skip member 5 (the user)
+      simulatedMembers.push(`SIM_${groupId}_${i}`);
+    }
   }
   
   // Generate contributions for each round based on condition
