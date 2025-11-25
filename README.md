@@ -1,298 +1,637 @@
 # Free-Riding Experiment Application
 
-A comprehensive web application for conducting free-riding experiments based on public goods game design.
+A comprehensive web application for conducting free-riding experiments based on public goods game design. This application implements configurable treatment conditions, simulated team members, and real-time leaderboards to study individual decision-making in group settings.
 
-> **Status**: CI/CD pipeline is active - deployments happen automatically on every push to main branch. This application implements treatment conditions (team leaderboards, individual leaderboards, contribution comparisons) and includes features for group formation, payoff calculations, timers, and an admin dashboard.
+## Table of Contents
+
+- [Overview](#overview)
+- [Experiment Design](#experiment-design)
+- [Factors and Levels](#factors-and-levels)
+- [Features](#features)
+- [Experiment Logic](#experiment-logic)
+- [Setup Instructions](#setup-instructions)
+- [Admin Configuration](#admin-configuration)
+- [Data Structure](#data-structure)
+- [Deployment](#deployment)
+
+## Overview
+
+This application conducts a multi-round public goods game where participants decide how many tokens to contribute to a group project. The experiment includes:
+
+- **Consent Form**: Ethical consent before participation
+- **Same Team**: Participants remain with the same team for all rounds
+- **Simulated Team Members**: AI-generated team members based on experimental conditions
+- **Configurable Factors**: All experimental factors can be configured by administrators
+- **Real-time Leaderboards**: Dynamic leaderboards that update as decisions are made
+- **Social Norm Display**: Team statistics (average, standard deviation) based on configuration
+
+## Experiment Design
+
+### Game Mechanics
+
+- **Endowment**: Each participant receives a fixed number of tokens per round (default: 20)
+- **Contribution Decision**: Participants choose how many tokens (0 to endowment) to contribute
+- **Group Project**: Contributed tokens are multiplied and shared equally among all group members
+- **Multiplier**: Default 1.6 (1 token contributed becomes 1.6 tokens shared)
+- **Payoff Formula**: `Payoff = (Endowment - Contribution) + (Group Total × Multiplier) / Group Size`
+
+### Example Calculation
+
+If a participant contributes 10 tokens and their group of 4 contributes 40 tokens total:
+- Tokens kept: 10
+- Group share: (40 × 1.6) / 4 = 16
+- **Total payoff: 26 tokens**
+
+### Round Structure
+
+1. Participant views round number and timer
+2. Makes contribution decision (0 to endowment)
+3. Submits decision
+4. Simulated team members' contributions are generated
+5. Results are calculated and displayed
+6. Leaderboards and social norms are shown (if enabled)
+7. Proceeds to next round
+
+## Factors and Levels
+
+### Factor 1: Info Display Timing
+
+**Description**: When information (leaderboards, social norms) is displayed to participants.
+
+**Levels**:
+- **Each Round**: Information is shown after each round's submission
+- **End Only**: Information is shown only at the end of all rounds
+
+**Default**: Each Round
+
+---
+
+### Factor 2: Focal User Condition
+
+**Description**: How the focal (real) participant's contribution compares to simulated team members.
+
+**Levels**:
+- **Free Rider**: Focal user always contributes significantly less than team average
+  - Simulated members contribute 40% more on average than focal user
+  - Creates consistent free-riding scenario
+- **Random**: Focal user's position varies randomly
+  - Sometimes higher than average (33% chance)
+  - Sometimes lower than average (33% chance)
+  - Sometimes similar to average (33% chance)
+
+**Default**: Random
+
+**Implementation**: Simulated team member contributions are adjusted based on focal user's actual contribution to maintain the condition.
+
+---
+
+### Factor 3: Leaderboard Stability
+
+**Description**: How leaderboard rankings change across rounds.
+
+**Levels**:
+- **Stable**: Relative ranks remain consistent
+  - Top contributors stay at top
+  - Lower contributors stay at bottom
+  - Rankings are predictable
+- **Dynamic**: Relative ranks change frequently
+  - Rankings vary from round to round
+  - Creates more uncertainty
+  - Simulated members' contributions vary more
+
+**Default**: Stable
+
+**Implementation**: Affects how simulated team member contributions are generated across rounds.
+
+---
+
+### Factor 4: Social Norm Display
+
+**Description**: What team statistics are shown to participants.
+
+**Levels**:
+- **None**: No social norm information is displayed
+- **Average Only**: Shows team average contribution
+- **Average + Std Deviation**: Shows both average and standard deviation
+
+**Default**: None
+
+**Display Location**: 
+- In the decision tab (if timing is "each round")
+- In the leaderboard tab
+- After round results
+
+---
+
+### Factor 5: Team Leaderboard
+
+**Description**: Whether to show rankings of teams by total contributions.
+
+**Levels**:
+- **Enabled**: Shows team leaderboard
+- **Disabled**: Does not show team leaderboard
+
+**Default**: Disabled
+
+**Display**: Shows top 10 teams ranked by total contributions across all rounds.
+
+---
+
+### Factor 6: Individual Leaderboard (Within Team)
+
+**Description**: Whether to show rankings of individuals within the participant's own team.
+
+**Levels**:
+- **Enabled**: Shows individual rankings within team
+- **Disabled**: Does not show within-team rankings
+
+**Default**: Disabled
+
+**Display**: Shows all team members (including simulated) ranked by total contributions.
+
+---
+
+### Factor 7: Individual Leaderboard (Across All Teams)
+
+**Description**: Whether to show rankings of all participants across all teams.
+
+**Levels**:
+- **Enabled**: Shows individual rankings across all teams
+- **Disabled**: Does not show cross-team rankings
+
+**Default**: Disabled
+
+**Display**: Shows top 20 participants ranked by total contributions.
+
+---
 
 ## Features
 
-### Experiment Features
-- **Multi-round Public Goods Game**: Participants contribute tokens to a group project over multiple rounds
-- **Treatment Randomization**: Each participant is randomly assigned treatment conditions:
-  - Team Leaderboard (shows group rankings)
-  - Individual Leaderboard (shows individual participant rankings)
-  - Contribution Comparison (shows contribution vs team average)
-- **Group Formation**: Automatic assignment of participants to groups
-- **Real-time Leaderboards**: Dynamic leaderboards that update as participants make decisions
-- **Round Timers**: Configurable timers for each round with auto-submit functionality
-- **Payoff Calculations**: Automatic calculation of payoffs based on contributions and group totals
-- **Next Round Auto-lock**: Rounds automatically lock when all group members have submitted
+### 1. Consent Management
 
-### Admin Dashboard
-- **Real-time Monitoring**: View all participants, groups, and contributions in real-time
-- **Statistics Overview**: Total participants, contributions, payoffs, and averages
-- **Round-by-Round Data**: Detailed view of all contributions and payoffs per round
-- **Treatment Distribution**: View how many participants received each treatment condition
-- **Data Export**: Export all experiment data to CSV/Excel format
-- **Experiment Settings**: Configure rounds, duration, group size, endowment, and multiplier
-- **Reset Functionality**: Ability to reset the experiment (with confirmation)
+- **Consent Form**: Participants must read and agree to participate
+- **Ethical Compliance**: Includes study information, risks, benefits, confidentiality
+- **Required Checkbox**: Cannot proceed without consent
+
+### 2. Participant Management
+
+- **Participant ID**: Unique identifier for each participant
+- **Session Continuity**: Participants can resume from where they left off
+- **Progress Tracking**: Tracks current round, total contributions, cumulative payoffs
+
+### 3. Group Formation
+
+- **Same Team**: Participants stay with the same group for all rounds
+- **Automatic Assignment**: Groups are formed automatically
+- **Group Size**: Configurable (default: 4 members total, 1 real + 3 simulated)
+
+### 4. Simulated Team Members
+
+- **Automatic Generation**: 3 simulated team members per group
+- **Condition-Based**: Contributions adjust based on focal user condition
+- **Realistic Behavior**: Contributions vary based on stability setting
+- **Transparent**: Simulated members are clearly labeled in leaderboards
+
+### 5. Real-time Updates
+
+- **Live Leaderboards**: Update automatically as contributions are made
+- **Real-time Listeners**: Firestore listeners for instant updates
+- **Smooth Transitions**: UI updates without page refresh
+
+### 6. Timer System
+
+- **Configurable Duration**: Round duration can be set (default: 120 seconds)
+- **Visual Countdown**: Timer displays remaining time
+- **Auto-Submit**: Automatically submits if time expires
+- **Warning States**: Visual warnings when time is running low
+
+### 7. Results Display
+
+- **Configurable Delay**: Delay before showing results (default: 3 seconds)
+- **Comprehensive Results**: Shows contribution, group total, share, payoff, cumulative
+- **No Scrolling Required**: Results appear on same screen
+- **Smooth Animations**: Smooth transitions between states
+
+### 8. Leaderboard Tab
+
+- **Dedicated View**: Separate tab for leaderboards
+- **Multiple Types**: Can show team, within-team, and cross-team leaderboards
+- **Auto-Switch**: Automatically switches to leaderboard tab after submission (if enabled)
+- **Real-time Updates**: Updates as new contributions are made
+
+### 9. Social Norm Display
+
+- **Team Statistics**: Shows team average and/or standard deviation
+- **Configurable**: Can be enabled/disabled and customized
+- **Multiple Locations**: Shown in decision tab, leaderboard tab, and results
+
+### 10. Admin Dashboard
+
+- **Real-time Monitoring**: View all participants and their progress
+- **Statistics Overview**: Total participants, contributions, payoffs, averages
+- **Round-by-Round Data**: Detailed view of all contributions per round
+- **Treatment Distribution**: View how many participants received each treatment
+- **Data Export**: Export all data to CSV/Excel format
+- **Experiment Configuration**: Configure all factors and settings
+- **Reset Functionality**: Ability to reset experiment (with confirmation)
+
+## Experiment Logic
+
+### Flow Diagram
+
+```
+1. Consent Form
+   ↓
+2. Welcome/Instructions
+   ↓
+3. Enter Participant ID
+   ↓
+4. Start Experiment
+   ├─→ Check if existing participant
+   │   ├─→ Yes: Load existing data, resume from current round
+   │   └─→ No: Create new participant
+   │       ├─→ Assign to group (or create new)
+   │       ├─→ Generate simulated team members
+   │       └─→ Store experiment config
+   ↓
+5. For Each Round (1 to Total Rounds):
+   ├─→ Display round number and timer
+   ├─→ Participant makes contribution decision
+   ├─→ Submit contribution
+   │   ├─→ Save focal user contribution
+   │   ├─→ Generate simulated team contributions
+   │   │   ├─→ Based on focal user condition
+   │   │   └─→ Based on leaderboard stability
+   │   ├─→ Calculate payoffs for all members
+   │   └─→ Save all contributions and payoffs
+   ├─→ Wait for configured delay
+   ├─→ Display results
+   ├─→ Show leaderboards (if enabled and timing = each round)
+   ├─→ Show social norm (if enabled)
+   └─→ Proceed to next round
+   ↓
+6. End Screen
+   ├─→ Show final statistics
+   └─→ Mark participant as completed
+```
+
+### Simulated Team Member Logic
+
+#### Base Contribution Generation
+
+For each simulated team member:
+- **Stable Condition**: Contributions follow a rank-based pattern (7-15 tokens)
+- **Dynamic Condition**: Contributions vary randomly (8-15 tokens)
+
+#### Adjustment Based on Focal User Condition
+
+**Free Rider Condition**:
+```
+Target Average = Focal User Contribution + (Endowment × 0.4)
+Adjustment = Target Average - Base Average
+Adjusted Contribution = Base Contribution + Adjustment
+```
+
+**Random Condition**:
+```
+Random Factor (0-1):
+  - < 0.33: Focal user higher → Simulated slightly lower
+  - 0.33-0.66: Focal user lower → Simulated slightly higher
+  - > 0.66: Focal user similar → Keep similar
+Adjustment = (Focal User - Base Average) × 0.8
+Adjusted Contribution = Base Contribution + Adjustment
+```
+
+### Payoff Calculation
+
+For each participant (focal user and simulated):
+1. Calculate group total: Sum of all contributions
+2. Calculate group share: `(Group Total × Multiplier) / Group Size`
+3. Calculate kept tokens: `Endowment - Contribution`
+4. Calculate payoff: `Kept + Group Share`
+5. Update cumulative payoff
+
+### Leaderboard Calculation
+
+**Team Leaderboard**:
+- Sum all contributions per group across all rounds
+- Sort by total (descending)
+- Display top 10
+
+**Individual Leaderboard (Within Team)**:
+- Sum contributions per team member for current group
+- Sort by total (descending)
+- Display all members
+
+**Individual Leaderboard (Across Teams)**:
+- Sum contributions per participant (excluding simulated)
+- Sort by total (descending)
+- Display top 20
+
+### Social Norm Calculation
+
+**Average**:
+```
+Average = Sum of all contributions / Number of team members
+```
+
+**Standard Deviation**:
+```
+Variance = Σ(Contribution - Average)² / Number of members
+Standard Deviation = √Variance
+```
 
 ## Setup Instructions
 
 ### Prerequisites
-- A Firebase project with Firestore enabled
-- Firebase configuration credentials
+
+- Firebase project with Firestore enabled
+- Firebase Hosting (optional, can also use OneDrive)
+- Modern web browser
 
 ### Firebase Setup
 
-1. **Create a Firebase Project**
+1. **Create Firebase Project**
    - Go to [Firebase Console](https://console.firebase.google.com/)
-   - Create a new project or use existing project `freeriding-a0ae7`
+   - Create project: `freeriding-a0ae7` (or use your own)
 
 2. **Enable Firestore**
-   - In Firebase Console, go to Firestore Database
-   - Create database in production mode (or test mode for development)
-   - The security rules are already configured in `firestore.rules`
+   - In Firebase Console → Firestore Database
+   - Create database in production mode
+   - Deploy security rules: `firebase deploy --only firestore:rules`
 
-3. **Deploy Firestore Rules**
-   ```bash
-   firebase deploy --only firestore:rules
-   ```
-
-4. **Deploy to Firebase Hosting**
-   ```bash
-   # Deploy Firestore rules first
-   firebase deploy --only firestore:rules
-   
-   # Then deploy hosting
-   firebase deploy --only hosting
-   
-   # Or deploy everything at once
-   firebase deploy
-   ```
-   
-   Your app will be available at:
-   - Main Experiment: `https://freeriding-a0ae7.web.app`
-   - Admin Dashboard: `https://freeriding-a0ae7.web.app/admin`
-   
-   See `DEPLOY.md` for detailed deployment instructions.
+3. **Configure API Key Restrictions** (Important for Security)
+   - Go to [Google Cloud Console](https://console.cloud.google.com/apis/credentials?project=freeriding-a0ae7)
+   - Find your API key
+   - Set Application Restrictions: HTTP referrers
+   - Add: `https://freeriding-a0ae7.web.app/*`, `https://freeriding-a0ae7.firebaseapp.com/*`
+   - Set API Restrictions: Only Cloud Firestore API and Firebase Installations API
 
 ### Local Setup
 
-1. **Clone or Download the Repository**
+1. **Clone Repository**
    ```bash
    git clone https://github.com/aanimesh-mcgill/freeriding.git
    cd freeriding
    ```
 
-2. **Install Firebase CLI (if deploying)**
+2. **Install Firebase CLI** (for deployment)
    ```bash
    npm install -g firebase-tools
    firebase login
    ```
 
-3. **Deploy to Firebase Hosting**
-   ```bash
-   # Login to Firebase
-   firebase login
-   
-   # Deploy everything
-   firebase deploy
-   ```
-   
-   Your app will be live at `https://freeriding-a0ae7.web.app`
-   
-   For local testing: Simply open `index.html` in a web browser
+3. **Test Locally**
+   - Open `index.html` in a web browser
+   - Test with a sample participant ID
 
-### OneDrive Hosting
+### Deployment
 
-1. **Upload Files to OneDrive**
-   - Upload all files (`index.html`, `admin.html`, `app.js`, `admin.js`, `style.css`) to a OneDrive folder
+#### Option 1: Firebase Hosting (Recommended)
 
-2. **Create Shareable Link**
-   - Right-click the folder in OneDrive
-   - Select "Share" → "Anyone with the link can view"
-   - Copy the shareable link
-   - Participants can access the experiment via this link
+```bash
+# Deploy Firestore rules
+firebase deploy --only firestore:rules
 
-3. **Note**: OneDrive may have limitations with JavaScript execution. For best results, use Firebase Hosting or another web hosting service.
-
-## File Structure
-
-```
-freeriding/
-├── index.html          # Main experiment interface
-├── admin.html          # Admin dashboard interface
-├── app.js              # Main experiment logic
-├── admin.js            # Admin dashboard logic
-├── style.css           # Styling for both interfaces
-├── firebase.json       # Firebase configuration
-├── firestore.rules     # Firestore security rules
-└── README.md           # This file
+# Deploy hosting
+firebase deploy --only hosting
 ```
 
-## Firestore Collections
+Your app will be live at:
+- Main: `https://freeriding-a0ae7.web.app`
+- Admin: `https://freeriding-a0ae7.web.app/admin`
 
-The application uses the following Firestore collections:
+#### Option 2: OneDrive
 
-- **`participants`**: Stores participant information, current round, total contributions, payoffs, and treatment conditions
-- **`contributions`**: Stores individual contribution decisions for each round
-- **`payoffs`**: Stores calculated payoffs for each participant per round
-- **`groups`**: Stores group information and member lists
-- **`rounds`**: Stores round completion status and group totals
-- **`settings`**: Stores experiment configuration (rounds, duration, group size, etc.)
+1. Upload all files to OneDrive folder
+2. Create shareable link with "Anyone with the link can view"
+3. Share link with participants
 
-## Experiment Design
+**Note**: OneDrive may have limitations with JavaScript execution.
 
-### Game Mechanics
-- Each participant receives an **endowment** (default: 20 tokens) per round
-- Participants decide how many tokens (0-20) to contribute to a group project
-- Tokens kept remain with the participant
-- Contributed tokens are multiplied by a **multiplier** (default: 1.6) and shared equally among all group members
-- **Payoff Formula**: `Payoff = (Endowment - Contribution) + (Group Total × Multiplier) / Group Size`
+### CI/CD Setup
 
-### Treatment Conditions
-Each participant is randomly assigned:
-- **Team Leaderboard**: Shows rankings of groups by total contributions
-- **Individual Leaderboard**: Shows rankings of individual participants by total contributions
-- **Contribution Comparison**: Shows whether participant's contribution is higher, similar, or lower than team average
-
-### Round Flow
-1. Participant enters Participant ID
-2. System assigns participant to a group (or creates new group)
-3. Treatment conditions are randomized and assigned
-4. For each round:
-   - Participant sees round number and timer
-   - Participant makes contribution decision
-   - Timer counts down (default: 120 seconds)
-   - If timer expires, contribution auto-submits with current slider value
-   - Once all group members submit, payoffs are calculated
-   - Results are displayed
-   - Participant proceeds to next round
-5. After all rounds, final summary is shown
-
-## Admin Dashboard Usage
-
-1. **Access**: Open `admin.html` in a web browser
-2. **Monitor**: View real-time statistics and participant data
-3. **Configure**: Adjust experiment settings (rounds, duration, group size, etc.)
-4. **Export**: Click "Export to Excel" to download all data as CSV
-5. **Reset**: Use "Reset Experiment" to clear all data (use with caution!)
-
-## Configuration
-
-### Default Settings
-- **Total Rounds**: 10
-- **Round Duration**: 120 seconds
-- **Group Size**: 4 participants
-- **Endowment**: 20 tokens per round
-- **Multiplier**: 1.6
-
-These can be changed in the admin dashboard or by modifying the `settings` collection in Firestore.
-
-## GitHub Repository
-
-Repository: https://github.com/aanimesh-mcgill/freeriding
-
-### CI/CD Pipeline (Automatic Deployment)
-
-The repository includes a GitHub Actions workflow that automatically deploys to Firebase when code is pushed to the `main` branch.
-
-#### Setup CI/CD (One-time)
+The repository includes GitHub Actions for automatic deployment:
 
 1. **Get Firebase CI Token**
    ```bash
    firebase login:ci
    ```
-   Copy the generated token.
 
 2. **Add Token to GitHub Secrets**
-   - Go to: https://github.com/aanimesh-mcgill/freeriding/settings/secrets/actions
-   - Click **New repository secret**
-   - Name: `FIREBASE_TOKEN`
-   - Value: Paste the token from step 1
-   - Click **Add secret**
+   - Go to: Repository → Settings → Secrets and variables → Actions
+   - Add secret: `FIREBASE_TOKEN` with the token from step 1
 
-3. **Push Code to Trigger First Deployment**
-   ```bash
-   git push -u origin main
-   ```
+3. **Automatic Deployment**
+   - Every push to `main` branch triggers deployment
+   - Can also manually trigger from Actions tab
 
-#### How It Works
+## Admin Configuration
 
-- **Automatic**: Every push to `main` branch triggers deployment
-- **Manual**: Can also trigger from GitHub Actions tab
-- **Deploys**: Both Firestore rules and Firebase Hosting
-- **Status**: Check deployment status in GitHub Actions tab
+### Accessing Admin Dashboard
 
-See `.github/workflows/README.md` for detailed instructions.
+Navigate to: `https://freeriding-a0ae7.web.app/admin`
 
-### Manual Git Operations
+### Configuring Experiment Settings
 
-If you need to push changes manually:
+#### Basic Settings
 
-```bash
-git add .
-git commit -m "Your commit message"
-git push origin main
-```
+- **Total Rounds**: Number of rounds (default: 10)
+- **Round Duration**: Time per round in seconds (default: 120)
+- **Group Size**: Total group size including focal user (default: 4)
+- **Endowment**: Tokens per round (default: 20)
+- **Multiplier**: Group project multiplier (default: 1.6)
+- **Results Delay**: Seconds to wait before showing results (default: 3)
 
-## Security Considerations
+#### Experiment Factors
 
-### Firestore Rules
-The current rules allow open read/write access for the experiment. For production use:
-- Implement Firebase Authentication
-- Restrict write access to authenticated users
-- Add admin role verification for admin dashboard
-- Review and tighten security rules based on your requirements
+1. **Info Display Timing**
+   - Select: "Each Round" or "End Only"
 
-### Data Privacy
-- Participant IDs should not contain personally identifiable information
-- Consider implementing data anonymization for exported data
-- Review data retention policies
+2. **Focal User Condition**
+   - Select: "Free Rider" or "Random"
+
+3. **Leaderboard Stability**
+   - Select: "Stable" or "Dynamic"
+
+4. **Social Norm Display**
+   - Select: "None", "Average Only", or "Average + Std Deviation"
+
+#### Information Display Options
+
+Check/uncheck:
+- ☑ Show Team Leaderboard
+- ☑ Show Individual Leaderboard (Within Team)
+- ☑ Show Individual Leaderboard (Across All Teams)
+
+### Saving Settings
+
+1. Configure all settings
+2. Click "Save Settings"
+3. Settings are saved to Firestore
+4. New participants will use updated settings
+
+### Monitoring Experiment
+
+- **Statistics Overview**: Real-time statistics
+- **Participants Table**: View all participants and their progress
+- **Groups Overview**: See all groups and their members
+- **Round-by-Round Data**: Detailed contribution data
+- **Treatment Distribution**: See how many participants have each treatment
+
+### Exporting Data
+
+1. Click "Export to Excel"
+2. CSV file downloads with all experiment data
+3. Includes: Participant ID, Group, Round, Contribution, Payoff, Treatment Conditions
+
+## Data Structure
+
+### Firestore Collections
+
+#### `participants`
+- `participantId` (string): Unique participant identifier
+- `groupId` (string): Assigned group ID
+- `currentRound` (number): Current round number
+- `totalContribution` (number): Sum of all contributions
+- `cumulativePayoff` (number): Total payoff across all rounds
+- `experimentConfig` (object): Experiment configuration for this participant
+- `status` (string): 'active' or 'completed'
+- `createdAt` (timestamp): When participant started
+- `lastActivity` (timestamp): Last activity time
+
+#### `contributions`
+- `participantId` (string): Who made the contribution
+- `groupId` (string): Which group
+- `round` (number): Round number
+- `contribution` (number): Amount contributed
+- `endowment` (number): Endowment for this round
+- `isSimulated` (boolean): Whether this is a simulated member
+- `timestamp` (timestamp): When contribution was made
+
+#### `payoffs`
+- `participantId` (string): Who received the payoff
+- `groupId` (string): Which group
+- `round` (number): Round number
+- `contribution` (number): Participant's contribution
+- `groupTotal` (number): Total group contribution
+- `groupShare` (number): Share from group project
+- `kept` (number): Tokens kept
+- `payoff` (number): Total payoff for this round
+- `timestamp` (timestamp): When payoff was calculated
+
+#### `groups`
+- `groupId` (string): Unique group identifier
+- `members` (array): Array of participant IDs
+- `simulatedMembers` (array): Array of simulated member IDs
+- `memberCount` (number): Total number of members
+- `status` (string): 'active' or 'completed'
+- `createdAt` (timestamp): When group was created
+
+#### `simulatedContributions`
+- `groupId` (string): Which group
+- `round` (number): Round number
+- `contributions` (array): Array of contribution objects
+- `createdAt` (timestamp): When generated
+
+#### `rounds`
+- `groupId` (string): Which group
+- `round` (number): Round number
+- `groupTotal` (number): Total contributions
+- `groupShare` (number): Share per member
+- `completed` (boolean): Whether round is complete
+- `completedAt` (timestamp): When completed
+
+#### `settings`
+- Document ID: `experiment`
+- Contains all experiment configuration:
+  - `totalRounds`, `roundDuration`, `groupSize`, `endowment`, `multiplier`
+  - `resultsDelay`
+  - `infoDisplayTiming`, `focalUserCondition`, `leaderboardStability`
+  - `socialNormDisplay`
+  - `showTeamLeaderboard`, `showIndividualLeaderboardWithinTeam`, `showIndividualLeaderboardAcrossTeams`
+
+## Deployment
+
+### Firebase Hosting
+
+The application is configured for Firebase Hosting. After deployment:
+
+- **Main App**: `https://freeriding-a0ae7.web.app`
+- **Admin Dashboard**: `https://freeriding-a0ae7.web.app/admin`
+
+### CI/CD Pipeline
+
+Automatic deployment via GitHub Actions:
+- Triggers on push to `main` branch
+- Deploys Firestore rules
+- Deploys Firebase Hosting
+- See `.github/workflows/deploy.yml` for configuration
+
+### Security
+
+- **Firestore Rules**: Configured in `firestore.rules`
+- **API Key Restrictions**: Must be configured in Google Cloud Console
+- **Data Privacy**: Participant IDs should not contain PII
 
 ## Troubleshooting
 
 ### Common Issues
 
-1. **Firebase Connection Errors**
-   - Verify Firebase configuration in `app.js` and `admin.js`
-   - Check Firestore is enabled in Firebase Console
-   - Verify security rules are deployed
+1. **"Permission denied" errors**
+   - Deploy Firestore rules: `firebase deploy --only firestore:rules`
+   - Check rules in Firebase Console
 
-2. **Timer Not Working**
-   - Check browser console for JavaScript errors
-   - Ensure `app.js` is loaded correctly
+2. **Simulated members not appearing**
+   - Check that `generateSimulatedTeamContributions` ran
+   - Verify group has `simulatedMembers` array
 
-3. **Leaderboards Not Updating**
-   - Check Firestore permissions
-   - Verify real-time listeners are active
+3. **Leaderboards not updating**
+   - Check experiment config in Firestore
+   - Verify `infoDisplayTiming` is set correctly
    - Check browser console for errors
 
-4. **Export Not Working**
+4. **Results not showing**
+   - Check `resultsDelay` setting
+   - Verify payoffs were calculated
    - Check browser console for errors
-   - Ensure all data collections are accessible
-   - Try refreshing the admin dashboard
 
-## Future Enhancements
+## File Structure
 
-Potential features to add:
-- Firebase Authentication for secure access
-- Payment integration for real monetary incentives
-- Advanced analytics and visualization
-- Mobile-responsive design improvements
-- Multi-language support
-- Email notifications for round completion
-- Advanced group formation algorithms
+```
+freeriding/
+├── index.html              # Main experiment interface
+├── admin.html              # Admin dashboard
+├── app.js                  # Experiment logic (1150+ lines)
+├── admin.js                # Admin dashboard logic
+├── style.css               # Styling
+├── firebase.json           # Firebase configuration
+├── firestore.rules         # Security rules
+├── .github/
+│   └── workflows/
+│       └── deploy.yml      # CI/CD pipeline
+└── README.md               # This file
+```
 
 ## References
 
-Based on the experimental design from:
+Based on experimental design from:
 - "Individual Behaviour in a Free Riding Experiment" by Joachim Weimann
 - Standard public goods game experimental design
 
 ## License
 
-This project is for research purposes. Please ensure compliance with your institution's research ethics guidelines.
+This project is for research purposes. Ensure compliance with your institution's research ethics guidelines.
 
 ## Support
 
 For issues or questions:
-- Check the GitHub repository issues
+- Check GitHub repository: https://github.com/aanimesh-mcgill/freeriding
 - Review Firebase documentation
-- Contact the research team
+- Check browser console for errors
 
 ---
 
-**Note**: This application is designed for research purposes. Ensure all necessary ethics approvals are obtained before conducting experiments with human participants.
-
+**Version**: 2.0  
+**Last Updated**: 2025  
+**Status**: Production Ready
