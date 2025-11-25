@@ -66,22 +66,23 @@ If a participant contributes 10 tokens and their group of 4 contributes 40 token
 
 ---
 
-### Factor 2: Focal User Condition
+### Factor 2: Focal User Contribution Level (Between-Subject)
 
-**Description**: How the focal (real) participant's contribution compares to simulated team members.
+**Description**: The focal (real) participant's rank position within their team across rounds.
 
 **Levels**:
-- **Free Rider**: Focal user always contributes significantly less than team average
-  - Simulated members contribute 40% more on average than focal user
-  - Creates consistent free-riding scenario
-- **Random**: Focal user's position varies randomly
-  - Sometimes higher than average (33% chance)
-  - Sometimes lower than average (33% chance)
-  - Sometimes similar to average (33% chance)
+- **85% Rounds Lower**: Focal user is in the bottom 3 ranks (ranks 4, 5, or 6 out of 6) in 85% of rounds
+  - Simulated members are adjusted to ensure at least 3 members rank above the focal user
+  - Target rank is randomly selected from ranks 4, 5, or 6 for each round
+  - 15% of rounds allow variation (user can be anywhere)
+- **85% Rounds Higher**: Focal user is in the top 3 ranks (ranks 1, 2, or 3 out of 6) in 85% of rounds
+  - Simulated members are adjusted to ensure at least 3 members rank below the focal user
+  - Target rank is randomly selected from ranks 1, 2, or 3 for each round
+  - 15% of rounds allow variation (user can be anywhere)
 
-**Default**: Random
+**Default**: 85% Rounds Lower
 
-**Implementation**: Simulated team member contributions are adjusted based on focal user's actual contribution to maintain the condition.
+**Implementation**: Simulated team member contributions are adjusted based on focal user's actual contribution to ensure the user achieves the target rank position (top 3 or bottom 3) in 85% of rounds.
 
 ---
 
@@ -111,8 +112,8 @@ If a participant contributes 10 tokens and their group of 4 contributes 40 token
 
 **Levels**:
 - **None**: No social norm information is displayed
-- **Average Only**: Shows team average contribution
-- **Average + Std Deviation**: Shows both average and standard deviation
+- **Average Only**: Shows team average contribution (standard deviation is calculated but not displayed)
+- **Average + Std Deviation**: Shows both average and standard deviation (legacy option, currently only average is shown)
 
 **Default**: None
 
@@ -120,6 +121,16 @@ If a participant contributes 10 tokens and their group of 4 contributes 40 token
 - In the decision tab (if timing is "each round")
 - In the leaderboard tab
 - After round results
+
+**Social Norm Average Logic**:
+- **High Team Rank Condition**: Target average is 16 tokens (configurable via admin, default: 16)
+- **Low Team Rank Condition**: Target average is 6 tokens (configurable via admin, default: 6)
+- **Variation**: +/-2 tokens variation is applied to the target average
+- **Individual Contributions**: Simulated team member contributions are adjusted to achieve the target average
+- **Admin Configuration**: Administrators can set:
+  - `socialNormAverageHigh`: Target average for high team rank (default: 16)
+  - `socialNormAverageLow`: Target average for low team rank (default: 6)
+  - `socialNormStdDev`: Standard deviation for calculations (not displayed to users)
 
 ---
 
@@ -255,8 +266,12 @@ If a participant contributes 10 tokens and their group of 4 contributes 40 token
 
 ### 9. Social Norm Display
 
-- **Team Statistics**: Shows team average and/or standard deviation
-- **Configurable**: Can be enabled/disabled and customized
+- **Team Statistics**: Shows team average only (standard deviation is calculated but not displayed)
+- **Condition-Based Average**: Average is set based on team rank condition:
+  - High team rank: 16 tokens (with +/-2 variation)
+  - Low team rank: 6 tokens (with +/-2 variation)
+- **Admin Configurable**: Administrators can set target averages for high/low team ranks
+- **Individual Contribution Adjustment**: Simulated contributions are adjusted to achieve target average
 - **Multiple Locations**: Shown in decision tab, leaderboard tab, and results
 
 ### 10. Admin Dashboard
@@ -317,24 +332,30 @@ For each simulated team member:
 - **Stable Condition**: Contributions follow a rank-based pattern (7-15 tokens)
 - **Dynamic Condition**: Contributions vary randomly (8-15 tokens)
 
-#### Adjustment Based on Focal User Condition
+#### Adjustment Based on Focal User Contribution Level
 
-**Free Rider Condition**:
+**85% Rounds Lower (Bottom 3)**:
 ```
-Target Average = Focal User Contribution + (Endowment × 0.4)
-Adjustment = Target Average - Base Average
-Adjusted Contribution = Base Contribution + Adjustment
+Target Rank: Randomly select rank 4, 5, or 6
+Number of Members Above User: targetRank - 1 (3, 4, or 5 members)
+- Top numMembersAboveUser simulated members: contribute 3-8 tokens more than user
+- Remaining simulated members: contribute 0-3 tokens less than user
+- Ensures user ranks in bottom 3 (ranks 4, 5, or 6)
 ```
 
-**Random Condition**:
+**85% Rounds Higher (Top 3)**:
 ```
-Random Factor (0-1):
-  - < 0.33: Focal user higher → Simulated slightly lower
-  - 0.33-0.66: Focal user lower → Simulated slightly higher
-  - > 0.66: Focal user similar → Keep similar
-Adjustment = (Focal User - Base Average) × 0.8
-Adjusted Contribution = Base Contribution + Adjustment
+Target Rank: Randomly select rank 1, 2, or 3
+Number of Members Above User: targetRank - 1 (0, 1, or 2 members)
+- Top numMembersAboveUser simulated members: contribute 1-4 tokens more than user
+- Remaining simulated members: contribute 3-8 tokens less than user
+- Ensures user ranks in top 3 (ranks 1, 2, or 3)
 ```
+
+**Compliance Tracking**:
+- Tracks rounds to ensure 85% compliance
+- 15% of rounds allow variation (user can be anywhere)
+- Compliance is calculated per round to maintain overall 85% target
 
 ### Payoff Calculation
 
@@ -364,16 +385,29 @@ For each participant (focal user and simulated):
 
 ### Social Norm Calculation
 
-**Average**:
+**Target Average (Condition-Based)**:
 ```
-Average = Sum of all contributions / Number of team members
+If teamContribution === 'high':
+  targetAvg = socialNormAverageHigh (default: 16)
+Else:
+  targetAvg = socialNormAverageLow (default: 6)
+
+Variation: targetAvg + random(-2 to +2)
+Final Target = clamp(targetAvg + variation, 0, endowment)
 ```
 
-**Standard Deviation**:
+**Individual Contribution Adjustment**:
 ```
-Variance = Σ(Contribution - Average)² / Number of members
-Standard Deviation = √Variance
+Total Needed = (Final Target × Group Size) - Focal User Contribution
+Average Per Simulated = Total Needed / Number of Simulated Members
+Each Simulated Contribution = Average Per Simulated + random(-1 to +1)
+Adjust to ensure total matches target exactly
 ```
+
+**Display**:
+- Only team average is displayed to users
+- Standard deviation is calculated but not shown
+- Average is calculated from actual contributions (which are adjusted to match target)
 
 ## Setup Instructions
 
@@ -490,6 +524,17 @@ Navigate to: `https://freeriding-a0ae7.web.app/admin`
 
 4. **Social Norm Display**
    - Select: "None", "Average Only", or "Average + Std Deviation"
+   
+5. **Social Norm Average (High Team Rank)**
+   - Set target average when team rank is high (default: 16)
+   - With +/-2 variation applied
+   
+6. **Social Norm Average (Low Team Rank)**
+   - Set target average when team rank is low (default: 6)
+   - With +/-2 variation applied
+   
+7. **Social Norm Standard Deviation**
+   - Set standard deviation for calculations (not displayed to users)
 
 #### Information Display Options
 

@@ -632,11 +632,7 @@
               <div class="mockup-social-norm-stats">
                 <div class="mockup-social-norm-stat">
                   <div class="label">Team Average</div>
-                  <div class="value">12.5</div>
-                </div>
-                <div class="mockup-social-norm-stat">
-                  <div class="label">Std Deviation</div>
-                  <div class="value">4.2</div>
+                  <div class="value">${cell.focalUserContributionLevel === 'lower' ? '14-18' : '14-18'}</div>
                 </div>
               </div>
             </div>
@@ -926,11 +922,7 @@
               <div class="mockup-social-norm-stats">
                 <div class="mockup-social-norm-stat">
                   <div class="label">Team Average</div>
-                  <div class="value">13.0</div>
-                </div>
-                <div class="mockup-social-norm-stat">
-                  <div class="label">Std Deviation</div>
-                  <div class="value">4.5</div>
+                  <div class="value">${cell.focalUserContributionLevel === 'lower' ? '14-18' : '14-18'}</div>
                 </div>
               </div>
             </div>
@@ -1000,10 +992,14 @@
           <strong>Focal User Contribution Level Logic:</strong>
           <p><code>focalUserContributionLevel: "${cell.focalUserContributionLevel}"</code></p>
           <ul>
-            <li><strong>Target:</strong> Focal user should be ${cell.focalUserContributionLevel === 'lower' ? 'lower' : 'higher'} than team average in 85% of rounds</li>
-            <li><strong>Implementation:</strong> Simulated team members adjust their contributions to ensure focal user is ${cell.focalUserContributionLevel === 'lower' ? 'below' : 'above'} average</li>
-            <li><strong>Adjustment:</strong> If focal user contributes X, simulated members contribute ${cell.focalUserContributionLevel === 'lower' ? 'X + 30% of endowment' : 'X - 30% of endowment'} on average</li>
-            <li><strong>Compliance:</strong> Tracks rounds to ensure 85% compliance (allows 15% variation)</li>
+            <li><strong>Target:</strong> Focal user should be in ${cell.focalUserContributionLevel === 'lower' ? 'bottom 3 ranks (ranks 4, 5, or 6)' : 'top 3 ranks (ranks 1, 2, or 3)'} in 85% of rounds</li>
+            <li><strong>Implementation:</strong> Simulated team members adjust their contributions to ensure focal user achieves target rank position</li>
+            <li><strong>Rank Positioning:</strong> 
+              ${cell.focalUserContributionLevel === 'lower' 
+                ? 'At least 3 simulated members contribute 3-8 tokens more than user to ensure user ranks 4th, 5th, or 6th'
+                : 'At most 2 simulated members contribute 1-4 tokens more than user, remaining members contribute 3-8 tokens less to ensure user ranks 1st, 2nd, or 3rd'}
+            </li>
+            <li><strong>Compliance:</strong> Tracks rounds to ensure 85% compliance (allows 15% variation where user can be anywhere)</li>
           </ul>
         </div>
       `;
@@ -1015,7 +1011,12 @@
           <ul>
             <li><strong>Group Size:</strong> 6 members total (1 focal user + 5 simulated)</li>
             <li><strong>Base Contributions:</strong> Simulated members contribute 8-15 tokens on average</li>
-            <li><strong>Adjustment:</strong> Contributions adjusted based on focal user's contribution to maintain ${cell.focalUserContributionLevel === 'lower' ? 'lower' : 'higher'} position</li>
+            <li><strong>Adjustment:</strong> Contributions adjusted to ensure focal user is in ${cell.focalUserContributionLevel === 'lower' ? 'bottom 3 ranks (4, 5, or 6)' : 'top 3 ranks (1, 2, or 3)'} in 85% of rounds</li>
+            <li><strong>Rank Positioning:</strong> 
+              ${cell.focalUserContributionLevel === 'lower' 
+                ? 'At least 3 simulated members contribute 3-8 tokens more than user'
+                : 'At most 2 simulated members contribute 1-4 tokens more, remaining contribute 3-8 tokens less'}
+            </li>
             <li><strong>Individual LB Stability:</strong> 
               <ul>
                 <li>High stability: Maintain ranks for 50% of rounds</li>
@@ -1045,31 +1046,31 @@
                 <td>Team Member 1</td>
                 <td>8-15 tokens</td>
                 <td>Adjusted based on focal</td>
-                <td>${cell.focalUserContributionLevel === 'lower' ? 'Higher than focal' : 'Lower than focal'}</td>
+                <td>${cell.focalUserContributionLevel === 'lower' ? '3-8 tokens more (to rank above)' : '3-8 tokens less (to rank below)'}</td>
               </tr>
               <tr>
                 <td>Team Member 2</td>
                 <td>8-15 tokens</td>
                 <td>Adjusted based on focal</td>
-                <td>${cell.focalUserContributionLevel === 'lower' ? 'Higher than focal' : 'Lower than focal'}</td>
+                <td>${cell.focalUserContributionLevel === 'lower' ? '3-8 tokens more (to rank above)' : '3-8 tokens less (to rank below)'}</td>
               </tr>
               <tr>
                 <td>Team Member 3</td>
                 <td>8-15 tokens</td>
                 <td>Adjusted based on focal</td>
-                <td>${cell.focalUserContributionLevel === 'lower' ? 'Higher than focal' : 'Lower than focal'}</td>
+                <td>${cell.focalUserContributionLevel === 'lower' ? '3-8 tokens more (to rank above)' : '3-8 tokens less (to rank below)'}</td>
               </tr>
               <tr>
                 <td>Team Member 4</td>
                 <td>8-15 tokens</td>
                 <td>Adjusted based on focal</td>
-                <td>${cell.focalUserContributionLevel === 'lower' ? 'Higher than focal' : 'Lower than focal'}</td>
+                <td>${cell.focalUserContributionLevel === 'lower' ? '3-8 tokens more (to rank above)' : '3-8 tokens less (to rank below)'}</td>
               </tr>
               <tr>
                 <td>Team Member 5</td>
                 <td>8-15 tokens</td>
                 <td>Adjusted based on focal</td>
-                <td>${cell.focalUserContributionLevel === 'lower' ? 'Higher than focal' : 'Lower than focal'}</td>
+                <td>${cell.focalUserContributionLevel === 'lower' ? '3-8 tokens more (to rank above)' : '3-8 tokens less (to rank below)'}</td>
               </tr>
             </tbody>
           </table>
