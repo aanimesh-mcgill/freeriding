@@ -2007,6 +2007,7 @@ async function loadTeamLeaderboardForTab() {
 
 // Load individual leaderboard within team
 async function loadIndividualLeaderboardWithinTeam() {
+  // This function shows ONLY the 6 members within the user's team (1 focal user + 5 simulated members)
   const leaderboardContent = document.getElementById('leaderboardContent');
   const section = document.createElement('div');
   section.className = 'leaderboard-section';
@@ -2129,6 +2130,8 @@ async function loadIndividualLeaderboardWithinTeam() {
 
 // Load individual leaderboard across all teams
 async function loadIndividualLeaderboardAcrossTeams() {
+  // This function shows ALL members across ALL teams (all 60 members if 10 teams × 6 members)
+  // Shows top 10, and if focal user is not in top 10, shows user with 1 rank above and 1 rank below
   const leaderboardContent = document.getElementById('leaderboardContent');
   const section = document.createElement('div');
   section.className = 'leaderboard-section';
@@ -2312,18 +2315,22 @@ async function loadIndividualLeaderboardAcrossTeams() {
     rowsToDisplay.add(i);
   }
   
-  // If user is not in top 10, show user with 2 above and 2 below
+  // If user is not in top 10, show user with 1 rank above and 1 rank below
   if (userIndex !== null && userIndex >= 10) {
-    const startIndex = Math.max(10, userIndex - 2);
-    const endIndex = Math.min(playerTotals.length - 1, userIndex + 2);
-    for (let i = startIndex; i <= endIndex; i++) {
-      rowsToDisplay.add(i);
+    // Show 1 above user (if exists and not already in top 10)
+    if (userIndex > 0) {
+      rowsToDisplay.add(userIndex - 1);
+    }
+    // Show user
+    rowsToDisplay.add(userIndex);
+    // Show 1 below user (if exists)
+    if (userIndex < playerTotals.length - 1) {
+      rowsToDisplay.add(userIndex + 1);
     }
   } else if (userIndex !== null && userIndex < 10) {
-    // If user is in top 10, also show 2 below if available
-    const endIndex = Math.min(playerTotals.length - 1, userIndex + 2);
-    for (let i = userIndex + 1; i <= endIndex; i++) {
-      rowsToDisplay.add(i);
+    // If user is in top 10, also show 1 below if available
+    if (userIndex < playerTotals.length - 1) {
+      rowsToDisplay.add(userIndex + 1);
     }
   }
   
