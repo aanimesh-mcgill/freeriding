@@ -1873,14 +1873,11 @@ async function loadIndividualLeaderboardAcrossTeams() {
   `;
   leaderboardContent.appendChild(section);
   
-  // Get ALL contributions for cumulative totals (for ranking)
-  const allContributionsSnapshot = await db.collection('contributions')
-    .where('groupId', '==', groupId)
-    .get();
+  // Get ALL contributions from ALL groups (for all 60 members: 10 teams × 6 members)
+  const allContributionsSnapshot = await db.collection('contributions').get();
   
-  // Get current round contributions
+  // Get current round contributions from all groups
   const currentRoundContributionsSnapshot = await db.collection('contributions')
-    .where('groupId', '==', groupId)
     .where('round', '==', currentRound)
     .get();
   
@@ -1901,7 +1898,7 @@ async function loadIndividualLeaderboardAcrossTeams() {
     }
   });
   
-  // Calculate cumulative totals and current round contributions
+  // Calculate cumulative totals and current round contributions for ALL members
   const playerData = new Map();
   
   // Initialize with current user
@@ -1918,11 +1915,11 @@ async function loadIndividualLeaderboardAcrossTeams() {
     groupId: groupId
   });
   
-  // Process all contributions to get cumulative totals
+  // Process all contributions to get cumulative totals for all simulated members from all teams
   allContributionsSnapshot.forEach(doc => {
     const data = doc.data();
     const pid = data.participantId;
-    // Only include simulated members (isSimulated flag or SIM_ prefix)
+    // Include all simulated members (isSimulated flag or SIM_ prefix) from all groups
     if ((data.isSimulated === true || pid.startsWith('SIM_')) && pid !== participantId) {
       // Extract groupId from SIM_groupId_memberNum format
       const parts = pid.split('_');
@@ -1940,9 +1937,15 @@ async function loadIndividualLeaderboardAcrossTeams() {
         });
       }
       playerData.get(pid).cumulative += data.contribution;
-      
-      // Add current round contribution
-      if (data.round === currentRound) {
+    }
+  });
+  
+  // Add current round contributions
+  currentRoundContributionsSnapshot.forEach(doc => {
+    const data = doc.data();
+    const pid = data.participantId;
+    if ((data.isSimulated === true || pid.startsWith('SIM_')) && pid !== participantId) {
+      if (playerData.has(pid)) {
         playerData.get(pid).thisRound += data.contribution;
       }
     }
@@ -1952,30 +1955,69 @@ async function loadIndividualLeaderboardAcrossTeams() {
   const playerTotals = Array.from(playerData.values());
   playerTotals.sort((a, b) => b.cumulative - a.cumulative);
   
+  // Find user's rank
+  const userIndex = playerTotals.findIndex(p => p.id === participantId);
+  const userRank = userIndex >= 0 ? userIndex + 1 : null;
+  
+  // Determine which rows to display
+  const rowsToDisplay = new Set();
+  
+  // Always show top 10
+  for (let i = 0; i < Math.min(10, playerTotals.length); i++) {
+    rowsToDisplay.add(i);
+  }
+  
+  // If user is not in top 10, show user with 2 above and 2 below
+  if (userIndex !== null && userIndex >= 10) {
+    const startIndex = Math.max(10, userIndex - 2);
+    const endIndex = Math.min(playerTotals.length - 1, userIndex + 2);
+    for (let i = startIndex; i <= endIndex; i++) {
+      rowsToDisplay.add(i);
+    }
+  }
+  
   const tbody = document.getElementById('individualAcrossTeamsBody');
   tbody.innerHTML = '';
   
-  playerTotals.slice(0, 20).forEach((player, index) => {
-    const row = tbody.insertRow();
-    row.insertCell(0).textContent = index + 1;
-    
-    let displayName;
-    if (player.id === participantId) {
-      displayName = 'You';
-    } else if (player.id.startsWith('SIM_')) {
-      // Get team number for this member's group
-      const teamNum = teamNumberMap.get(player.groupId) || 5;
-      displayName = `Team ${teamNum} Member ${player.memberNum}`;
-    } else {
-      displayName = `Team Member ${player.id}`;
-    }
-    
-    row.insertCell(1).textContent = displayName;
-    row.insertCell(2).textContent = player.cumulative;
-    row.insertCell(3).textContent = player.thisRound;
-    if (player.id === participantId) {
-      row.style.backgroundColor = '#e3f2fd';
-      row.style.fontWeight = 'bold';
+  let lastDisplayedIndex = -1;
+  playerTotals.forEach((player, index) => {
+    if (rowsToDisplay.has(index)) {
+      // Add separator row if there's a gap
+      if (lastDisplayedIndex >= 0 && index > lastDisplayedIndex + 1) {
+        const separatorRow = tbody.insertRow();
+        const cell = separatorRow.insertCell(0);
+        cell.colSpan = 4;
+        cell.textContent = '...';
+        cell.style.textAlign = 'center';
+        cell.style.fontStyle = 'italic';
+        cell.style.color = '#999';
+        cell.style.padding = '5px';
+      }
+      
+      const row = tbody.insertRow();
+      row.insertCell(0).textContent = index + 1;
+      
+      let displayName;
+      if (player.id === participantId) {
+        displayName = 'You';
+      } else if (player.id.startsWith('SIM_')) {
+        // Get team number for this member's group
+        const teamNum = teamNumberMap.get(player.groupId) || 5;
+        displayName = `Team ${teamNum} Member ${player.memberNum}`;
+      } else {
+        displayName = `Team Member ${player.id}`;
+      }
+      
+      row.insertCell(1).textContent = displayName;
+      row.insertCell(2).textContent = player.cumulative;
+      row.insertCell(3).textContent = player.thisRound;
+      
+      if (player.id === participantId) {
+        row.style.backgroundColor = '#e3f2fd';
+        row.style.fontWeight = 'bold';
+      }
+      
+      lastDisplayedIndex = index;
     }
   });
 }
