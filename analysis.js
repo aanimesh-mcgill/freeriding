@@ -29,6 +29,23 @@ class SimpleRegression {
     this.tStats = [];
     this.pValues = [];
     this.useClusteredSE = false; // Whether to use clustered SEs
+    this.Matrix = null; // Will store the Matrix class reference
+  }
+  
+  // Get Matrix class - handles different ways ml-matrix might be exposed
+  getMatrixClass() {
+    if (this.Matrix) return this.Matrix;
+    
+    // Try different ways the library might be exposed
+    if (typeof mlMatrix !== 'undefined' && mlMatrix.Matrix) {
+      this.Matrix = mlMatrix.Matrix;
+    } else if (typeof Matrix !== 'undefined') {
+      this.Matrix = Matrix;
+    } else {
+      throw new Error('ml-matrix library not loaded. Please check the script tag in analysis.html');
+    }
+    
+    return this.Matrix;
   }
   
   addData(x, y, clusterId = null) {
@@ -47,16 +64,10 @@ class SimpleRegression {
     const n = this.X.length;
     const k = this.X[0].length; // Number of predictors (including intercept)
     
+    // Get Matrix class
+    const Matrix = this.getMatrixClass();
+    
     // Convert to matrix format
-    // Handle different ways ml-matrix might be exposed
-    const Matrix = (typeof mlMatrix !== 'undefined' && mlMatrix.Matrix) 
-      ? mlMatrix.Matrix 
-      : (typeof Matrix !== 'undefined' ? Matrix : null);
-    
-    if (!Matrix) {
-      throw new Error('ml-matrix library not loaded. Please check the script tag in analysis.html');
-    }
-    
     const XMatrix = Matrix.from1DArray(n, k, this.X.flat());
     const yMatrix = Matrix.from1DArray(n, 1, this.y);
     
@@ -131,14 +142,8 @@ class SimpleRegression {
   
   // Calculate clustered standard errors (cluster-robust variance estimator)
   calculateClusteredStandardErrors(XMatrix, XtXInv) {
-    // Get Matrix class (should be available from fit() method)
-    const Matrix = (typeof mlMatrix !== 'undefined' && mlMatrix.Matrix) 
-      ? mlMatrix.Matrix 
-      : (typeof Matrix !== 'undefined' ? Matrix : null);
-    
-    if (!Matrix) {
-      throw new Error('ml-matrix library not loaded');
-    }
+    // Get Matrix class
+    const Matrix = this.getMatrixClass();
     
     const n = this.X.length;
     const k = this.coefficients.length;
