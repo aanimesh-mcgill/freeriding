@@ -1980,7 +1980,6 @@ async function loadTeamLeaderboardForTab() {
   });
   
   // Display top 10
-  const tbody = document.getElementById('teamLeaderboardTabBody');
   tbody.innerHTML = '';
   
   allTeams.slice(0, 10).forEach((team, index) => {
@@ -2101,7 +2100,6 @@ async function loadIndividualLeaderboardWithinTeam() {
   // Apply individual LB stability: maintain ranks at 85% or 25% level
   // The actual rank maintenance is handled in getSimulatedTeamContributions
   // Here we just display the sorted order
-  const tbody = document.getElementById('individualWithinTeamBody');
   tbody.innerHTML = '';
   
   sorted.forEach((member, index) => {
