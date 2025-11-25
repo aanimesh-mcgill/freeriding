@@ -38,7 +38,8 @@ async function loadExperimentSettings() {
     if (settings) {
       document.getElementById('totalRoundsSetting').value = settings.totalRounds || 10;
       document.getElementById('roundDurationSetting').value = settings.roundDuration || 120;
-      document.getElementById('groupSizeSetting').value = settings.groupSize || 4;
+      document.getElementById('groupSizeSetting').value = settings.groupSize || 6;
+      document.getElementById('totalTeamsSetting').value = settings.totalTeams || 10;
       document.getElementById('endowmentSetting').value = settings.endowment || 20;
       document.getElementById('multiplierSetting').value = settings.multiplier || 1.6;
       document.getElementById('resultsDelaySetting').value = settings.resultsDelay || 3;
@@ -67,6 +68,7 @@ async function saveSettings() {
     totalRounds: parseInt(document.getElementById('totalRoundsSetting').value),
     roundDuration: parseInt(document.getElementById('roundDurationSetting').value),
     groupSize: parseInt(document.getElementById('groupSizeSetting').value),
+    totalTeams: parseInt(document.getElementById('totalTeamsSetting').value),
     endowment: parseInt(document.getElementById('endowmentSetting').value),
     multiplier: parseFloat(document.getElementById('multiplierSetting').value),
     resultsDelay: parseInt(document.getElementById('resultsDelaySetting').value),

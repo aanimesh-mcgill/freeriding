@@ -19,7 +19,8 @@ let uniqueParticipantId = ""; // Auto-generated unique ID
 let currentRound = 1;
 let totalRounds = 10;
 let roundDuration = 120; // seconds
-let groupSize = 4;
+let groupSize = 6; // Default: 6 members per group
+let totalTeams = 10; // Default: 10 teams total
 let endowment = 20;
 let multiplier = 1.6;
 let resultsDelay = 3; // seconds to wait before showing results
@@ -64,7 +65,7 @@ let experimentConfig = {
   showCellDisplay: true, // Show cell assignment (admin-configurable)
   
   // Simulated Team Members
-  simulatedTeamSize: 3, // Number of simulated team members (total group size = 4)
+  simulatedTeamSize: 5, // Number of simulated team members (total group size = 6)
 };
 
 // Initialize on page load
@@ -151,7 +152,8 @@ async function loadExperimentSettings() {
     if (settings) {
       totalRounds = settings.totalRounds || 10;
       roundDuration = settings.roundDuration || 120;
-      groupSize = settings.groupSize || 4;
+      groupSize = settings.groupSize || 6;
+      totalTeams = settings.totalTeams || 10;
       endowment = settings.endowment || 20;
       multiplier = settings.multiplier || 1.6;
       resultsDelay = settings.resultsDelay || 3;
@@ -262,40 +264,16 @@ function updateInfoDisplay() {
       // No info shown
       break;
     case 'teamLB':
-      // Only team leaderboard
-      if (teamLBPanel) {
-        loadTeamLeaderboard();
-        teamLBPanel.classList.remove('hidden');
-      }
+      // Only team leaderboard - shown in tab only, not in treatment panel
       break;
     case 'indLBWithin':
-      // Only individual leaderboard within team
-      if (indLBPanel) {
-        loadIndividualLeaderboard();
-        indLBPanel.classList.remove('hidden');
-      }
+      // Only individual leaderboard within team - shown in tab only
       break;
     case 'bothLBWithin':
-      // Both team and individual leaderboard (within team)
-      if (teamLBPanel) {
-        loadTeamLeaderboard();
-        teamLBPanel.classList.remove('hidden');
-      }
-      if (indLBPanel) {
-        loadIndividualLeaderboard();
-        indLBPanel.classList.remove('hidden');
-      }
+      // Both team and individual leaderboard (within team) - shown in tab only
       break;
     case 'bothLBAcross':
-      // Both team and individual leaderboard (across teams)
-      if (teamLBPanel) {
-        loadTeamLeaderboard();
-        teamLBPanel.classList.remove('hidden');
-      }
-      if (indLBPanel) {
-        loadIndividualLeaderboardAcrossTeams();
-        indLBPanel.classList.remove('hidden');
-      }
+      // Both team and individual leaderboard (across teams) - shown in tab only
       break;
     case 'socialNorm':
       // Social norm (average team and own)
@@ -305,11 +283,7 @@ function updateInfoDisplay() {
       }
       break;
     case 'indLBAcross':
-      // Only individual leaderboard across teams
-      if (indLBPanel) {
-        loadIndividualLeaderboardAcrossTeams();
-        indLBPanel.classList.remove('hidden');
-      }
+      // Only individual leaderboard across teams - shown in tab only
       break;
   }
 }
@@ -552,11 +526,11 @@ async function generateSimulatedTeamContributions(groupId) {
         individualStability = experimentConfig.withinSubjectSequence[round - 1].individualLBStability;
       }
       
-      // High stability (85% maintain ranks): maintain relative positions
-      // Low stability (25% maintain ranks): allow more variation
+      // High stability (50% maintain ranks): maintain relative positions
+      // Low stability (50% maintain ranks): allow more variation
       const shouldMaintainRank = individualStability === 'high'
-        ? (round <= Math.floor(totalRounds * 0.85))
-        : (round <= Math.floor(totalRounds * 0.25));
+        ? (round <= Math.floor(totalRounds * 0.5))
+        : (round <= Math.floor(totalRounds * 0.5));
       
       if (shouldMaintainRank && round > 1) {
         // Maintain relative rank positions (high contributors stay high, low stay low)
@@ -676,6 +650,13 @@ async function loadRound() {
   document.getElementById('submittedMessage').classList.add('hidden');
   document.getElementById('roundResults').classList.add('hidden');
   document.getElementById('nextRoundBtn').classList.add('hidden');
+  
+  // Show decision section and switch to decision tab
+  const decisionSection = document.getElementById('decision-section');
+  if (decisionSection) {
+    decisionSection.style.display = 'block';
+  }
+  switchTab('decision');
   
   submitted = false;
   contribution = 0;
@@ -931,15 +912,79 @@ async function calculateRoundPayoffs() {
   
   await batch.commit();
   
-  // Update round status
-  await db.collection('rounds').doc(`${groupId}_${currentRound}`).set({
+  // Store comprehensive round data including all simulated contributions, ranks, team totals, and team ranks
+  const roundData = {
     groupId,
     round: currentRound,
     groupTotal,
     groupShare,
     completed: true,
-    completedAt: firebase.firestore.FieldValue.serverTimestamp()
-  }, { merge: true });
+    completedAt: firebase.firestore.FieldValue.serverTimestamp(),
+    
+    // Individual contributions and ranks within team
+    teamMembers: [],
+    
+    // Team totals and ranks
+    teamTotals: [],
+    teamRanks: []
+  };
+  
+  // Get all team member contributions and calculate ranks
+  const teamContributions = [];
+  contributionsSnapshot.forEach(doc => {
+    const data = doc.data();
+    teamContributions.push({
+      participantId: data.participantId,
+      contribution: data.contribution,
+      isSimulated: data.isSimulated || false
+    });
+  });
+  
+  // Sort by contribution to get ranks
+  teamContributions.sort((a, b) => b.contribution - a.contribution);
+  teamContributions.forEach((member, index) => {
+    roundData.teamMembers.push({
+      participantId: member.participantId,
+      contribution: member.contribution,
+      rank: index + 1,
+      isSimulated: member.isSimulated
+    });
+  });
+  
+  // Get all teams and their totals for this round
+  const groupsSnapshot = await db.collection('groups').get();
+  const teamTotalsMap = {};
+  
+  for (const groupDoc of groupsSnapshot.docs) {
+    const gid = groupDoc.id;
+    const teamContribsSnapshot = await db.collection('contributions')
+      .where('groupId', '==', gid)
+      .where('round', '==', currentRound)
+      .get();
+    
+    let teamTotal = 0;
+    teamContribsSnapshot.forEach(doc => {
+      teamTotal += doc.data().contribution;
+    });
+    
+    teamTotalsMap[gid] = teamTotal;
+  }
+  
+  // Sort teams by total to get ranks
+  const sortedTeams = Object.entries(teamTotalsMap)
+    .sort((a, b) => b[1] - a[1]);
+  
+  sortedTeams.forEach(([gid, total], index) => {
+    roundData.teamTotals.push({
+      groupId: gid,
+      total: total,
+      rank: index + 1,
+      isFocalTeam: gid === groupId
+    });
+  });
+  
+  // Update round status with comprehensive data
+  await db.collection('rounds').doc(`${groupId}_${currentRound}`).set(roundData, { merge: true });
 }
 
 async function showRoundResults() {
@@ -970,7 +1015,7 @@ async function showRoundResults() {
   const participantData = participantDoc.data();
   cumulativePayoff = participantData ? participantData.cumulativePayoff || 0 : 0;
   
-  // Hide decision section immediately
+  // Hide decision section immediately (will be shown again in next round)
   const decisionSection = document.getElementById('decision-section');
   if (decisionSection) {
     decisionSection.style.display = 'none';
@@ -1111,8 +1156,8 @@ async function loadTeamLeaderboard() {
   
   // Check if team LB stability should maintain ranks (high = 85% maintain, low = 25% maintain)
   const shouldMaintainRank = experimentConfig.teamLBStability === 'high' 
-    ? (currentRound <= Math.floor(totalRounds * 0.85))
-    : (currentRound <= Math.floor(totalRounds * 0.25));
+    ? (currentRound <= Math.floor(totalRounds * 0.5))
+    : (currentRound <= Math.floor(totalRounds * 0.5));
   
   if (shouldMaintainRank && currentRound > 1) {
     // Maintain previous rank (85% or 25% of rounds depending on stability level)
@@ -1317,8 +1362,8 @@ async function loadTeamLeaderboardForTab() {
   
   // Check if team LB stability should maintain ranks (high = 85% maintain, low = 25% maintain)
   const shouldMaintainRank = experimentConfig.teamLBStability === 'high' 
-    ? (currentRound <= Math.floor(totalRounds * 0.85))
-    : (currentRound <= Math.floor(totalRounds * 0.25));
+    ? (currentRound <= Math.floor(totalRounds * 0.5))
+    : (currentRound <= Math.floor(totalRounds * 0.5));
   
   if (shouldMaintainRank && currentRound > 1) {
     // Maintain previous rank (85% or 25% of rounds depending on stability level)
@@ -1452,7 +1497,15 @@ async function loadIndividualLeaderboardWithinTeam() {
   sorted.forEach(([pid, total], index) => {
     const row = tbody.insertRow();
     row.insertCell(0).textContent = index + 1;
-    const memberName = pid.startsWith('SIM_') ? `Team Member ${pid.split('_')[2]}` : pid;
+    let memberName;
+    if (pid === participantId) {
+      memberName = 'You';
+    } else if (pid.startsWith('SIM_')) {
+      const memberNum = pid.split('_')[2] || '1';
+      memberName = `Team Member ${memberNum}`;
+    } else {
+      memberName = pid;
+    }
     row.insertCell(1).textContent = memberName;
     row.insertCell(2).textContent = total;
     if (pid === participantId) {
