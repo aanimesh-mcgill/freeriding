@@ -791,17 +791,15 @@ async function submitContribution() {
       round: currentRound,
       contribution,
       endowment,
-      // Treatment information
+      // Treatment information (new structure)
       treatmentConditions: {
-        infoDisplayTiming: experimentConfig.infoDisplayTiming,
-        focalUserCondition: experimentConfig.focalUserCondition,
-        leaderboardStability: experimentConfig.leaderboardStability,
-        socialNormDisplay: experimentConfig.socialNormDisplay,
-        focalMemberTeamRank: experimentConfig.focalMemberTeamRank,
-        teamLeaderboardRankingStability: experimentConfig.teamLeaderboardRankingStability,
-        showTeamLeaderboard: experimentConfig.showTeamLeaderboard,
-        showIndividualLeaderboardWithinTeam: experimentConfig.showIndividualLeaderboardWithinTeam,
-        showIndividualLeaderboardAcrossTeams: experimentConfig.showIndividualLeaderboardAcrossTeams
+        betweenSubjectCell: experimentConfig.betweenSubjectCell,
+        infoType: experimentConfig.infoType,
+        focalUserContributionLevel: experimentConfig.focalUserContributionLevel,
+        teamContribution: experimentConfig.teamContribution,
+        individualLBStability: experimentConfig.individualLBStability,
+        teamLBStability: experimentConfig.teamLBStability,
+        round: currentRound
       },
       timestamp: firebase.firestore.FieldValue.serverTimestamp(),
       submittedAt: Date.now()
@@ -1632,10 +1630,8 @@ function setupLeaderboardListeners() {
     leaderboardListener(); // Unsubscribe existing listener
   }
   
-  if (experimentConfig.infoDisplayTiming === 'eachRound' && 
-      (experimentConfig.showTeamLeaderboard || 
-       experimentConfig.showIndividualLeaderboardWithinTeam || 
-       experimentConfig.showIndividualLeaderboardAcrossTeams)) {
+  // Set up listeners if infoType shows leaderboards
+  if (experimentConfig.infoType !== 'noInfo' && experimentConfig.infoType !== 'socialNorm') {
     leaderboardListener = db.collection('contributions').onSnapshot(() => {
       loadLeaderboards();
     });
