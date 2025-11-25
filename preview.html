@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cell Preview - Decision-Making Experiment</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .preview-container {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    
+    .cell-preview {
+      background: white;
+      border-radius: 12px;
+      padding: 25px;
+      margin-bottom: 30px;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    }
+    
+    .cell-header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 20px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+    }
+    
+    .cell-header h2 {
+      margin: 0 0 10px 0;
+      font-size: 24px;
+    }
+    
+    .cell-info {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 15px;
+      margin-bottom: 20px;
+    }
+    
+    .info-item {
+      background: #f5f5f5;
+      padding: 12px;
+      border-radius: 6px;
+    }
+    
+    .info-item strong {
+      display: block;
+      color: #667eea;
+      margin-bottom: 5px;
+    }
+    
+    .preview-section {
+      margin: 25px 0;
+      padding: 20px;
+      background: #f9f9f9;
+      border-radius: 8px;
+      border-left: 4px solid #667eea;
+    }
+    
+    .preview-section h3 {
+      color: #667eea;
+      margin-top: 0;
+      margin-bottom: 15px;
+    }
+    
+    .logic-box {
+      background: #fff;
+      padding: 15px;
+      border-radius: 6px;
+      margin: 10px 0;
+      border: 1px solid #ddd;
+    }
+    
+    .logic-box code {
+      background: #f0f0f0;
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-family: 'Courier New', monospace;
+    }
+    
+    .before-decision, .after-decision {
+      margin: 20px 0;
+    }
+    
+    .simulated-data {
+      background: #e8f4f8;
+      padding: 15px;
+      border-radius: 6px;
+      margin: 10px 0;
+    }
+    
+    .simulated-data table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+    }
+    
+    .simulated-data th, .simulated-data td {
+      padding: 8px;
+      text-align: left;
+      border-bottom: 1px solid #ddd;
+    }
+    
+    .simulated-data th {
+      background: #667eea;
+      color: white;
+    }
+    
+    .team-ranking {
+      background: #fff3cd;
+      padding: 15px;
+      border-radius: 6px;
+      margin: 10px 0;
+    }
+    
+    .stability-info {
+      background: #d1ecf1;
+      padding: 15px;
+      border-radius: 6px;
+      margin: 10px 0;
+    }
+    
+    .toggle-btn {
+      background: #667eea;
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 5px;
+      cursor: pointer;
+      margin: 5px;
+    }
+    
+    .toggle-btn:hover {
+      background: #5568d3;
+    }
+    
+    .hidden-section {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="preview-container">
+    <div class="cell-header" style="margin-bottom: 30px;">
+      <h1>Cell Preview - Decision-Making Experiment</h1>
+      <p>This page shows what participants see in each of the 14 experiment cells, including all logic for simulated contributions, team rankings, and stability.</p>
+    </div>
+    
+    <div id="cellsContainer"></div>
+  </div>
+  
+  <script>
+    // Define all 14 cells
+    const BETWEEN_SUBJECT_CELLS = [
+      // Cell 1-7: Focal user 85% rounds LOWER than average
+      { cellNumber: 1, infoType: 'noInfo', focalUserContributionLevel: 'lower' },
+      { cellNumber: 2, infoType: 'teamLB', focalUserContributionLevel: 'lower' },
+      { cellNumber: 3, infoType: 'indLBWithin', focalUserContributionLevel: 'lower' },
+      { cellNumber: 4, infoType: 'bothLBWithin', focalUserContributionLevel: 'lower' },
+      { cellNumber: 5, infoType: 'bothLBAcross', focalUserContributionLevel: 'lower' },
+      { cellNumber: 6, infoType: 'socialNorm', focalUserContributionLevel: 'lower' },
+      { cellNumber: 7, infoType: 'indLBAcross', focalUserContributionLevel: 'lower' },
+      
+      // Cell 8-14: Focal user 85% rounds HIGHER than average
+      { cellNumber: 8, infoType: 'noInfo', focalUserContributionLevel: 'higher' },
+      { cellNumber: 9, infoType: 'teamLB', focalUserContributionLevel: 'higher' },
+      { cellNumber: 10, infoType: 'indLBWithin', focalUserContributionLevel: 'higher' },
+      { cellNumber: 11, infoType: 'bothLBWithin', focalUserContributionLevel: 'higher' },
+      { cellNumber: 12, infoType: 'bothLBAcross', focalUserContributionLevel: 'higher' },
+      { cellNumber: 13, infoType: 'socialNorm', focalUserContributionLevel: 'higher' },
+      { cellNumber: 14, infoType: 'indLBAcross', focalUserContributionLevel: 'higher' },
+    ];
+    
+    const infoTypeLabels = {
+      'noInfo': 'No Info',
+      'teamLB': 'Team Leaderboard Only',
+      'indLBWithin': 'Individual Leaderboard (Within Team) Only',
+      'bothLBWithin': 'Both Team & Individual Leaderboard (Within Team)',
+      'bothLBAcross': 'Both Team & Individual Leaderboard (Across Teams)',
+      'socialNorm': 'Social Norm (Average Team & Own)',
+      'indLBAcross': 'Individual Leaderboard (Across Teams) Only'
+    };
+    
+    // Generate preview for all cells
+    function generateCellPreviews() {
+      const container = document.getElementById('cellsContainer');
+      
+      BETWEEN_SUBJECT_CELLS.forEach(cell => {
+        const cellDiv = document.createElement('div');
+        cellDiv.className = 'cell-preview';
+        cellDiv.id = `cell-${cell.cellNumber}`;
+        
+        const focalLabel = cell.focalUserContributionLevel === 'lower' 
+          ? '85% Rounds Lower Than Average' 
+          : '85% Rounds Higher Than Average';
+        
+        cellDiv.innerHTML = `
+          <div class="cell-header">
+            <h2>Cell ${cell.cellNumber}: ${infoTypeLabels[cell.infoType]} | ${focalLabel}</h2>
+            <div style="display: flex; gap: 10px; margin-top: 10px;">
+              <button class="toggle-btn" onclick="toggleSection('before-${cell.cellNumber}')">Show Before Decision</button>
+              <button class="toggle-btn" onclick="toggleSection('after-${cell.cellNumber}')">Show After Decision</button>
+              <button class="toggle-btn" onclick="toggleSection('logic-${cell.cellNumber}')">Show Logic</button>
+            </div>
+          </div>
+          
+          <div class="cell-info">
+            <div class="info-item">
+              <strong>Info Type:</strong>
+              ${infoTypeLabels[cell.infoType]}
+            </div>
+            <div class="info-item">
+              <strong>Focal User Level:</strong>
+              ${focalLabel}
+            </div>
+            <div class="info-item">
+              <strong>Test URL:</strong>
+              <code>?cell=${cell.cellNumber}</code>
+            </div>
+          </div>
+          
+          <!-- Before Decision -->
+          <div id="before-${cell.cellNumber}" class="preview-section hidden-section">
+            <h3>📋 What User Sees BEFORE Making Decision</h3>
+            ${generateBeforeDecisionView(cell)}
+          </div>
+          
+          <!-- After Decision -->
+          <div id="after-${cell.cellNumber}" class="preview-section hidden-section">
+            <h3>✅ What User Sees AFTER Making Decision</h3>
+            ${generateAfterDecisionView(cell)}
+          </div>
+          
+          <!-- Logic -->
+          <div id="logic-${cell.cellNumber}" class="preview-section hidden-section">
+            <h3>⚙️ Experiment Logic for This Cell</h3>
+            ${generateLogicExplanation(cell)}
+          </div>
+        `;
+        
+        container.appendChild(cellDiv);
+      });
+    }
+    
+    function generateBeforeDecisionView(cell) {
+      let html = '<div class="before-decision">';
+      
+      // Common elements
+      html += `
+        <div class="logic-box">
+          <strong>Common Elements (All Cells):</strong>
+          <ul>
+            <li>Round number and timer</li>
+            <li>Contribution slider (0-20 tokens)</li>
+            <li>Quick contribution buttons (0, 5, 10, 15, 20)</li>
+            <li>Display of: "You contribute: X tokens" and "You keep: Y tokens"</li>
+            <li>Submit button</li>
+          </ul>
+        </div>
+      `;
+      
+      // Info-specific elements
+      switch(cell.infoType) {
+        case 'noInfo':
+          html += `
+            <div class="logic-box">
+              <strong>No Additional Information Shown</strong>
+              <p>User makes decision without any leaderboard or social norm information.</p>
+            </div>
+          `;
+          break;
+          
+        case 'teamLB':
+          html += `
+            <div class="logic-box">
+              <strong>Team Leaderboard Tab Available</strong>
+              <p>User can switch to "Leaderboard" tab to see team rankings. Shows:</p>
+              <ul>
+                <li>Top 10 teams ranked by total contributions</li>
+                <li>Focal user's team highlighted as "Your Team"</li>
+                <li>Other teams shown as "Team 1", "Team 2", etc.</li>
+                <li>Team position based on within-subject factor (high = top 25%, low = bottom 25%)</li>
+              </ul>
+            </div>
+          `;
+          break;
+          
+        case 'indLBWithin':
+          html += `
+            <div class="logic-box">
+              <strong>Individual Leaderboard (Within Team) Tab Available</strong>
+              <p>User can switch to "Leaderboard" tab to see individual rankings within their team:</p>
+              <ul>
+                <li>All 6 team members ranked by total contributions</li>
+                <li>Focal user shown as "You"</li>
+                <li>Simulated members shown as "Team Member 1", "Team Member 2", etc.</li>
+              </ul>
+            </div>
+          `;
+          break;
+          
+        case 'bothLBWithin':
+          html += `
+            <div class="logic-box">
+              <strong>Both Team & Individual Leaderboard (Within Team) Tabs Available</strong>
+              <p>User can switch to "Leaderboard" tab to see:</p>
+              <ul>
+                <li>Team leaderboard (top 10 teams)</li>
+                <li>Individual leaderboard within their team (all 6 members)</li>
+              </ul>
+            </div>
+          `;
+          break;
+          
+        case 'bothLBAcross':
+          html += `
+            <div class="logic-box">
+              <strong>Both Team & Individual Leaderboard (Across Teams) Tabs Available</strong>
+              <p>User can switch to "Leaderboard" tab to see:</p>
+              <ul>
+                <li>Team leaderboard (top 10 teams)</li>
+                <li>Individual leaderboard across all participants (top 20)</li>
+              </ul>
+            </div>
+          `;
+          break;
+          
+        case 'socialNorm':
+          html += `
+            <div class="logic-box">
+              <strong>Social Norm Information Shown</strong>
+              <p>User sees team statistics:</p>
+              <ul>
+                <li>Team average contribution</li>
+                <li>Standard deviation of team contributions</li>
+                <li>Shown in decision tab and leaderboard tab</li>
+              </ul>
+            </div>
+          `;
+          break;
+          
+        case 'indLBAcross':
+          html += `
+            <div class="logic-box">
+              <strong>Individual Leaderboard (Across Teams) Tab Available</strong>
+              <p>User can switch to "Leaderboard" tab to see:</p>
+              <ul>
+                <li>Top 20 participants across all teams</li>
+                <li>Ranked by total contributions</li>
+              </ul>
+            </div>
+          `;
+          break;
+      }
+      
+      html += '</div>';
+      return html;
+    }
+    
+    function generateAfterDecisionView(cell) {
+      let html = '<div class="after-decision">';
+      
+      // Common results
+      html += `
+        <div class="logic-box">
+          <strong>Common Results Display (All Cells):</strong>
+          <ul>
+            <li>Your contribution: X tokens</li>
+            <li>Group total: Y tokens</li>
+            <li>Your share: Z tokens</li>
+            <li>Your payoff: W tokens</li>
+            <li>Cumulative payoff: V tokens</li>
+            <li>Results appear after configurable delay (default: 3 seconds)</li>
+            <li>Decision section hides, results section appears</li>
+          </ul>
+        </div>
+      `;
+      
+      // Info-specific after-decision display
+      switch(cell.infoType) {
+        case 'noInfo':
+          html += `
+            <div class="logic-box">
+              <strong>No Additional Information After Decision</strong>
+              <p>User only sees results, no leaderboards or social norms.</p>
+            </div>
+          `;
+          break;
+          
+        case 'teamLB':
+        case 'indLBWithin':
+        case 'bothLBWithin':
+        case 'bothLBAcross':
+        case 'indLBAcross':
+          html += `
+            <div class="logic-box">
+              <strong>Leaderboard Tab Auto-Switches</strong>
+              <p>After showing results, automatically switches to "Leaderboard" tab showing:</p>
+              ${getLeaderboardInfo(cell.infoType)}
+            </div>
+          `;
+          break;
+          
+        case 'socialNorm':
+          html += `
+            <div class="logic-box">
+              <strong>Social Norm Information Updated</strong>
+              <p>Team statistics updated with current round contributions:</p>
+              <ul>
+                <li>Team average: X tokens</li>
+                <li>Standard deviation: Y tokens</li>
+                <li>Shown in leaderboard tab</li>
+              </ul>
+            </div>
+          `;
+          break;
+      }
+      
+      html += '</div>';
+      return html;
+    }
+    
+    function getLeaderboardInfo(infoType) {
+      switch(infoType) {
+        case 'teamLB':
+          return '<ul><li>Team leaderboard with top 10 teams</li><li>Your team highlighted</li></ul>';
+        case 'indLBWithin':
+          return '<ul><li>Individual leaderboard within your team (6 members)</li></ul>';
+        case 'bothLBWithin':
+          return '<ul><li>Team leaderboard</li><li>Individual leaderboard within team</li></ul>';
+        case 'bothLBAcross':
+          return '<ul><li>Team leaderboard</li><li>Individual leaderboard across all teams</li></ul>';
+        case 'indLBAcross':
+          return '<ul><li>Individual leaderboard across all teams (top 20)</li></ul>';
+        default:
+          return '';
+      }
+    }
+    
+    function generateLogicExplanation(cell) {
+      let html = '<div class="logic-explanation">';
+      
+      // Focal user contribution logic
+      html += `
+        <div class="logic-box">
+          <strong>Focal User Contribution Level Logic:</strong>
+          <p><code>focalUserContributionLevel: "${cell.focalUserContributionLevel}"</code></p>
+          <ul>
+            <li><strong>Target:</strong> Focal user should be ${cell.focalUserContributionLevel === 'lower' ? 'lower' : 'higher'} than team average in 85% of rounds</li>
+            <li><strong>Implementation:</strong> Simulated team members adjust their contributions to ensure focal user is ${cell.focalUserContributionLevel === 'lower' ? 'below' : 'above'} average</li>
+            <li><strong>Adjustment:</strong> If focal user contributes X, simulated members contribute ${cell.focalUserContributionLevel === 'lower' ? 'X + 30% of endowment' : 'X - 30% of endowment'} on average</li>
+            <li><strong>Compliance:</strong> Tracks rounds to ensure 85% compliance (allows 15% variation)</li>
+          </ul>
+        </div>
+      `;
+      
+      // Simulated contributions
+      html += `
+        <div class="simulated-data">
+          <strong>Simulated Team Member Contributions:</strong>
+          <ul>
+            <li><strong>Group Size:</strong> 6 members total (1 focal user + 5 simulated)</li>
+            <li><strong>Base Contributions:</strong> Simulated members contribute 8-15 tokens on average</li>
+            <li><strong>Adjustment:</strong> Contributions adjusted based on focal user's contribution to maintain ${cell.focalUserContributionLevel === 'lower' ? 'lower' : 'higher'} position</li>
+            <li><strong>Individual LB Stability:</strong> 
+              <ul>
+                <li>High stability: Maintain ranks for 50% of rounds</li>
+                <li>Low stability: Maintain ranks for 50% of rounds (same for both, but different implementation)</li>
+                <li>Rank maintenance: High contributors stay high, low contributors stay low</li>
+              </ul>
+            </li>
+          </ul>
+          
+          <table>
+            <thead>
+              <tr>
+                <th>Member</th>
+                <th>Base Contribution</th>
+                <th>Adjusted Contribution</th>
+                <th>Logic</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>You (Focal)</td>
+                <td>User Input</td>
+                <td>User Input</td>
+                <td>No adjustment</td>
+              </tr>
+              <tr>
+                <td>Team Member 1</td>
+                <td>8-15 tokens</td>
+                <td>Adjusted based on focal</td>
+                <td>${cell.focalUserContributionLevel === 'lower' ? 'Higher than focal' : 'Lower than focal'}</td>
+              </tr>
+              <tr>
+                <td>Team Member 2</td>
+                <td>8-15 tokens</td>
+                <td>Adjusted based on focal</td>
+                <td>${cell.focalUserContributionLevel === 'lower' ? 'Higher than focal' : 'Lower than focal'}</td>
+              </tr>
+              <tr>
+                <td>Team Member 3</td>
+                <td>8-15 tokens</td>
+                <td>Adjusted based on focal</td>
+                <td>${cell.focalUserContributionLevel === 'lower' ? 'Higher than focal' : 'Lower than focal'}</td>
+              </tr>
+              <tr>
+                <td>Team Member 4</td>
+                <td>8-15 tokens</td>
+                <td>Adjusted based on focal</td>
+                <td>${cell.focalUserContributionLevel === 'lower' ? 'Higher than focal' : 'Lower than focal'}</td>
+              </tr>
+              <tr>
+                <td>Team Member 5</td>
+                <td>8-15 tokens</td>
+                <td>Adjusted based on focal</td>
+                <td>${cell.focalUserContributionLevel === 'lower' ? 'Higher than focal' : 'Lower than focal'}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      `;
+      
+      // Team ranking logic
+      html += `
+        <div class="team-ranking">
+          <strong>Team Ranking Logic:</strong>
+          <ul>
+            <li><strong>Total Teams:</strong> 10 teams (configurable in admin)</li>
+            <li><strong>Team Contribution Factor (Within-Subject):</strong>
+              <ul>
+                <li><strong>High:</strong> Your team appears in top 25% of teams</li>
+                <li><strong>Low:</strong> Your team appears in bottom 25% of teams</li>
+              </ul>
+            </li>
+            <li><strong>Team LB Stability (Within-Subject):</strong>
+              <ul>
+                <li><strong>High:</strong> Team rank maintained for 50% of rounds</li>
+                <li><strong>Low:</strong> Team rank maintained for 50% of rounds</li>
+                <li>When not maintained, rank can vary within the target range (top 25% or bottom 25%)</li>
+              </ul>
+            </li>
+            <li><strong>Implementation:</strong> Simulated teams created with adjusted totals to position focal team correctly</li>
+            <li><strong>Team Naming:</strong> Focal team = "Your Team", Others = "Team 1", "Team 2", etc.</li>
+          </ul>
+        </div>
+      `;
+      
+      // Within-subject factors
+      html += `
+        <div class="stability-info">
+          <strong>Within-Subject Factors (Randomized Per Round):</strong>
+          <ul>
+            <li><strong>Team Contribution:</strong> High (top 25%) or Low (bottom 25%) - randomized per round</li>
+            <li><strong>Individual LB Stability:</strong> High (50% maintain) or Low (50% maintain) - randomized per round</li>
+            <li><strong>Team LB Stability:</strong> High (50% maintain) or Low (50% maintain) - randomized per round</li>
+            <li><strong>Randomization:</strong> All 8 combinations (2×2×2) randomly assigned across rounds</li>
+            <li><strong>Order Effect:</strong> Sequence shuffled to mitigate order effects</li>
+          </ul>
+        </div>
+      `;
+      
+      // Data storage
+      html += `
+        <div class="logic-box">
+          <strong>Data Storage for This Cell:</strong>
+          <ul>
+            <li><strong>Participant Record:</strong> Stores between-subject cell (${cell.cellNumber}), infoType, focalUserContributionLevel</li>
+            <li><strong>Contributions:</strong> Each contribution stores treatmentConditions with all factors</li>
+            <li><strong>Payoffs:</strong> Each payoff stores treatmentConditions with all factors</li>
+            <li><strong>Round Data:</strong> Comprehensive round data stored including:
+              <ul>
+                <li>All team member contributions and ranks (including simulated)</li>
+                <li>All team totals and ranks</li>
+                <li>Individual ranks within team</li>
+                <li>Team ranks across all teams</li>
+              </ul>
+            </li>
+            <li><strong>Cell Assignment:</strong> Tracked in cellAssignments collection</li>
+          </ul>
+        </div>
+      `;
+      
+      html += '</div>';
+      return html;
+    }
+    
+    function toggleSection(sectionId) {
+      const section = document.getElementById(sectionId);
+      if (section) {
+        section.classList.toggle('hidden-section');
+      }
+    }
+    
+    // Generate all previews on page load
+    document.addEventListener('DOMContentLoaded', () => {
+      generateCellPreviews();
+    });
+  </script>
+</body>
+</html>
+
