@@ -1816,34 +1816,65 @@ async function loadIndividualLeaderboardAcrossTeams() {
   `;
   leaderboardContent.appendChild(section);
   
-  // Get contributions for current user and simulated members only
-  // Get current user's total from participants collection
-  const currentUserDoc = await db.collection('participants').doc(participantId).get();
-  const currentUserTotal = currentUserDoc.exists ? (currentUserDoc.data().totalContribution || 0) : 0;
-  
-  // Get simulated members' contributions from contributions collection
-  const contributionsSnapshot = await db.collection('contributions')
-    .where('groupId', '==', groupId)
+  // Get contributions for CURRENT ROUND ONLY (not cumulative)
+  // Get current user's contribution for this round
+  const currentUserContribution = await db.collection('contributions')
+    .where('participantId', '==', participantId)
+    .where('round', '==', currentRound)
+    .limit(1)
     .get();
   
+  const currentUserRoundTotal = currentUserContribution.empty ? 0 : currentUserContribution.docs[0].data().contribution;
+  
+  // Get simulated members' contributions for CURRENT ROUND ONLY
+  const contributionsSnapshot = await db.collection('contributions')
+    .where('groupId', '==', groupId)
+    .where('round', '==', currentRound)
+    .get();
+  
+  // Create a map to track team numbers for each groupId
+  const teamNumberMap = new Map();
+  teamNumberMap.set(groupId, 5); // Focal team is always Team 5
+  
+  // Get all groups to assign team numbers
+  const allGroupsSnapshot = await db.collection('groups').get();
+  const availableTeamNumbers = [1, 2, 3, 4, 6, 7, 8, 9, 10];
+  let teamNumIndex = 0;
+  
+  allGroupsSnapshot.forEach(doc => {
+    const gid = doc.id;
+    if (gid !== groupId && !teamNumberMap.has(gid) && teamNumIndex < availableTeamNumbers.length) {
+      teamNumberMap.set(gid, availableTeamNumbers[teamNumIndex]);
+      teamNumIndex++;
+    }
+  });
+  
   const playerTotals = [
-    { id: participantId, total: currentUserTotal, isSimulated: false }
+    { id: participantId, total: currentUserRoundTotal, isSimulated: false, groupId: groupId }
   ];
   
   contributionsSnapshot.forEach(doc => {
     const data = doc.data();
     const pid = data.participantId;
-    // Only include simulated members (isSimulated flag or SIM_ prefix)
+    // Only include simulated members (isSimulated flag or SIM_ prefix) for current round
     if ((data.isSimulated === true || pid.startsWith('SIM_')) && pid !== participantId) {
+      // Extract groupId from SIM_groupId_memberNum format
+      const parts = pid.split('_');
+      const simGroupId = parts.length > 1 ? parts[1] : groupId;
+      const memberNum = parts.length > 2 ? parts[2] : '1';
+      
       // Check if we already have this simulated member
       const existingIndex = playerTotals.findIndex(p => p.id === pid);
       if (existingIndex >= 0) {
+        // Shouldn't happen for same round, but just in case
         playerTotals[existingIndex].total += data.contribution;
       } else {
         playerTotals.push({
           id: pid,
-          total: data.contribution,
-          isSimulated: true
+          total: data.contribution, // Current round contribution only
+          isSimulated: true,
+          groupId: simGroupId,
+          memberNum: memberNum
         });
       }
     }
@@ -1863,10 +1894,9 @@ async function loadIndividualLeaderboardAcrossTeams() {
     if (player.id === participantId) {
       displayName = 'You';
     } else if (player.id.startsWith('SIM_')) {
-      // Extract member number from SIM_groupId_memberNum format
-      const parts = player.id.split('_');
-      const memberNum = parts.length > 2 ? parts[2] : '1';
-      displayName = `Team Member ${memberNum}`;
+      // Get team number for this member's group
+      const teamNum = teamNumberMap.get(player.groupId) || 5;
+      displayName = `Team ${teamNum} Member ${player.memberNum}`;
     } else {
       displayName = `Team Member ${player.id}`;
     }
