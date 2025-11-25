@@ -1148,10 +1148,12 @@ function setupLeaderboardListeners() {
     leaderboardListener(); // Unsubscribe existing listener
   }
   
-  if (showTeamLeaderboard || showIndividualLeaderboard) {
+  if (experimentConfig.infoDisplayTiming === 'eachRound' && 
+      (experimentConfig.showTeamLeaderboard || 
+       experimentConfig.showIndividualLeaderboardWithinTeam || 
+       experimentConfig.showIndividualLeaderboardAcrossTeams)) {
     leaderboardListener = db.collection('contributions').onSnapshot(() => {
-      if (showTeamLeaderboard) loadTeamLeaderboard();
-      if (showIndividualLeaderboard) loadIndividualLeaderboard();
+      loadLeaderboards();
     });
   }
 }
