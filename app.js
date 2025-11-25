@@ -647,12 +647,14 @@ async function calculateRoundPayoffs() {
       timestamp: firebase.firestore.FieldValue.serverTimestamp()
     });
     
-    // Update participant cumulative payoff
-    const participantRef = db.collection('participants').doc(pid);
-    batch.update(participantRef, {
-      cumulativePayoff: firebase.firestore.FieldValue.increment(payoff),
-      lastActivity: firebase.firestore.FieldValue.serverTimestamp()
-    });
+    // Update participant cumulative payoff (only for real participants, not simulated)
+    if (!pid.startsWith('SIM_')) {
+      const participantRef = db.collection('participants').doc(pid);
+      batch.update(participantRef, {
+        cumulativePayoff: firebase.firestore.FieldValue.increment(payoff),
+        lastActivity: firebase.firestore.FieldValue.serverTimestamp()
+      });
+    }
   }
   
   await batch.commit();
