@@ -140,6 +140,293 @@
     .hidden-section {
       display: none;
     }
+    
+    .screen-mockup {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      border-radius: 12px;
+      padding: 20px;
+      margin: 20px 0;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+    }
+    
+    .screen-mockup-content {
+      background: white;
+      border-radius: 8px;
+      padding: 25px;
+      min-height: 400px;
+    }
+    
+    .mockup-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 15px 20px;
+      background: white;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+    
+    .mockup-header-left {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    
+    .mockup-round {
+      font-size: 24px;
+      font-weight: bold;
+      color: #667eea;
+    }
+    
+    .mockup-timer {
+      font-size: 16px;
+      color: #e74c3c;
+    }
+    
+    .mockup-header-right {
+      display: flex;
+      gap: 20px;
+      align-items: center;
+    }
+    
+    .mockup-id {
+      font-size: 14px;
+      color: #666;
+    }
+    
+    .mockup-tokens {
+      font-size: 18px;
+      font-weight: bold;
+      color: #667eea;
+    }
+    
+    .mockup-tabs {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+      border-bottom: 2px solid #e0e0e0;
+    }
+    
+    .mockup-tab {
+      padding: 12px 24px;
+      background: transparent;
+      border: none;
+      border-bottom: 3px solid transparent;
+      cursor: pointer;
+      font-size: 16px;
+      color: #666;
+    }
+    
+    .mockup-tab.active {
+      color: #667eea;
+      border-bottom-color: #667eea;
+      font-weight: bold;
+    }
+    
+    .mockup-decision-section {
+      text-align: center;
+      padding: 30px;
+    }
+    
+    .mockup-decision-section h3 {
+      color: #667eea;
+      margin-bottom: 20px;
+      font-size: 22px;
+    }
+    
+    .mockup-slider-container {
+      margin: 30px 0;
+    }
+    
+    .mockup-slider {
+      width: 100%;
+      height: 8px;
+      background: #e0e0e0;
+      border-radius: 4px;
+      margin: 20px 0;
+      position: relative;
+    }
+    
+    .mockup-slider-track {
+      height: 100%;
+      background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+      width: 50%;
+      border-radius: 4px;
+    }
+    
+    .mockup-slider-labels {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 10px;
+      font-size: 14px;
+      color: #666;
+    }
+    
+    .mockup-buttons {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+      margin: 20px 0;
+    }
+    
+    .mockup-btn {
+      padding: 10px 20px;
+      border: 2px solid #667eea;
+      background: white;
+      color: #667eea;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    
+    .mockup-btn.active {
+      background: #667eea;
+      color: white;
+    }
+    
+    .mockup-summary {
+      display: flex;
+      justify-content: center;
+      gap: 30px;
+      margin: 20px 0;
+      padding: 15px;
+      background: #f8f9fa;
+      border-radius: 8px;
+    }
+    
+    .mockup-summary-item {
+      text-align: center;
+    }
+    
+    .mockup-summary-item span {
+      display: block;
+      font-size: 18px;
+      font-weight: bold;
+      color: #667eea;
+      margin-top: 5px;
+    }
+    
+    .mockup-submit-btn {
+      padding: 15px 40px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 18px;
+      font-weight: bold;
+      cursor: pointer;
+      margin-top: 20px;
+    }
+    
+    .mockup-results {
+      padding: 30px;
+      background: #f8f9fa;
+      border-radius: 8px;
+      margin: 20px 0;
+    }
+    
+    .mockup-results h3 {
+      color: #667eea;
+      margin-bottom: 20px;
+    }
+    
+    .mockup-results-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 15px;
+      margin: 20px 0;
+    }
+    
+    .mockup-result-item {
+      background: white;
+      padding: 15px;
+      border-radius: 8px;
+      text-align: center;
+    }
+    
+    .mockup-result-item .label {
+      font-size: 14px;
+      color: #666;
+      margin-bottom: 5px;
+    }
+    
+    .mockup-result-item .value {
+      font-size: 24px;
+      font-weight: bold;
+      color: #667eea;
+    }
+    
+    .mockup-leaderboard {
+      margin: 20px 0;
+    }
+    
+    .mockup-leaderboard h3 {
+      color: #667eea;
+      margin-bottom: 15px;
+    }
+    
+    .mockup-table {
+      width: 100%;
+      border-collapse: collapse;
+      background: white;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    
+    .mockup-table thead {
+      background: #667eea;
+      color: white;
+    }
+    
+    .mockup-table th,
+    .mockup-table td {
+      padding: 12px;
+      text-align: left;
+      border-bottom: 1px solid #e0e0e0;
+    }
+    
+    .mockup-table tbody tr:hover {
+      background: #f8f9fa;
+    }
+    
+    .mockup-table tbody tr.highlight {
+      background: #e3f2fd;
+      font-weight: bold;
+    }
+    
+    .mockup-social-norm {
+      background: #e8f4f8;
+      padding: 20px;
+      border-radius: 8px;
+      margin: 20px 0;
+    }
+    
+    .mockup-social-norm h4 {
+      color: #667eea;
+      margin-bottom: 15px;
+    }
+    
+    .mockup-social-norm-stats {
+      display: flex;
+      gap: 30px;
+    }
+    
+    .mockup-social-norm-stat {
+      text-align: center;
+    }
+    
+    .mockup-social-norm-stat .label {
+      font-size: 14px;
+      color: #666;
+      margin-bottom: 5px;
+    }
+    
+    .mockup-social-norm-stat .value {
+      font-size: 24px;
+      font-weight: bold;
+      color: #667eea;
+    }
   </style>
 </head>
 <body>
@@ -248,179 +535,443 @@
     function generateBeforeDecisionView(cell) {
       let html = '<div class="before-decision">';
       
-      // Common elements
+      // Visual mockup of the screen
       html += `
-        <div class="logic-box">
-          <strong>Common Elements (All Cells):</strong>
-          <ul>
-            <li>Round number and timer</li>
-            <li>Contribution slider (0-20 tokens)</li>
-            <li>Quick contribution buttons (0, 5, 10, 15, 20)</li>
-            <li>Display of: "You contribute: X tokens" and "You keep: Y tokens"</li>
-            <li>Submit button</li>
-          </ul>
+        <div class="screen-mockup">
+          <div class="screen-mockup-content">
+            <!-- Header -->
+            <div class="mockup-header">
+              <div class="mockup-header-left">
+                <div class="mockup-round">Round 1 of 10</div>
+                <div class="mockup-timer">Time Remaining: 01:52</div>
+              </div>
+              <div class="mockup-header-right">
+                <div class="mockup-id">ID: UID-1234567890-ABCDEF</div>
+                <div class="mockup-tokens">Your Tokens: 20</div>
+              </div>
+            </div>
+            
+            <!-- Tabs -->
+            <div class="mockup-tabs">
+              <button class="mockup-tab active">Decision</button>
+              <button class="mockup-tab">Leaderboard</button>
+            </div>
+            
+            <!-- Decision Section -->
+            <div class="mockup-decision-section">
+              <h3>Make Your Decision</h3>
+              <p style="color: #666; margin-bottom: 20px;">How many tokens do you want to contribute to the group project?</p>
+              
+              <!-- Slider -->
+              <div class="mockup-slider-container">
+                <div class="mockup-slider">
+                  <div class="mockup-slider-track"></div>
+                </div>
+                <div class="mockup-slider-labels">
+                  <span>0</span>
+                  <span style="font-weight: bold; color: #667eea;">10</span>
+                  <span>20</span>
+                </div>
+              </div>
+              
+              <!-- Quick buttons -->
+              <div class="mockup-buttons">
+                <button class="mockup-btn">0</button>
+                <button class="mockup-btn">5</button>
+                <button class="mockup-btn active">10</button>
+                <button class="mockup-btn">15</button>
+                <button class="mockup-btn">20</button>
+              </div>
+              
+              <!-- Summary -->
+              <div class="mockup-summary">
+                <div class="mockup-summary-item">
+                  <div>You contribute:</div>
+                  <span>10</span> tokens
+                </div>
+                <div class="mockup-summary-item">
+                  <div>You keep:</div>
+                  <span>10</span> tokens
+                </div>
+              </div>
+              
+              <!-- Submit button -->
+              <button class="mockup-submit-btn">SUBMIT DECISION</button>
+            </div>
+            
+            ${generateBeforeDecisionInfo(cell)}
+          </div>
         </div>
       `;
-      
-      // Info-specific elements
-      switch(cell.infoType) {
-        case 'noInfo':
-          html += `
-            <div class="logic-box">
-              <strong>No Additional Information Shown</strong>
-              <p>User makes decision without any leaderboard or social norm information.</p>
-            </div>
-          `;
-          break;
-          
-        case 'teamLB':
-          html += `
-            <div class="logic-box">
-              <strong>Team Leaderboard Tab Available</strong>
-              <p>User can switch to "Leaderboard" tab to see team rankings. Shows:</p>
-              <ul>
-                <li>Top 10 teams ranked by total contributions</li>
-                <li>Focal user's team highlighted as "Your Team"</li>
-                <li>Other teams shown as "Team 1", "Team 2", etc.</li>
-                <li>Team position based on within-subject factor (high = top 25%, low = bottom 25%)</li>
-              </ul>
-            </div>
-          `;
-          break;
-          
-        case 'indLBWithin':
-          html += `
-            <div class="logic-box">
-              <strong>Individual Leaderboard (Within Team) Tab Available</strong>
-              <p>User can switch to "Leaderboard" tab to see individual rankings within their team:</p>
-              <ul>
-                <li>All 6 team members ranked by total contributions</li>
-                <li>Focal user shown as "You"</li>
-                <li>Simulated members shown as "Team Member 1", "Team Member 2", etc.</li>
-              </ul>
-            </div>
-          `;
-          break;
-          
-        case 'bothLBWithin':
-          html += `
-            <div class="logic-box">
-              <strong>Both Team & Individual Leaderboard (Within Team) Tabs Available</strong>
-              <p>User can switch to "Leaderboard" tab to see:</p>
-              <ul>
-                <li>Team leaderboard (top 10 teams)</li>
-                <li>Individual leaderboard within their team (all 6 members)</li>
-              </ul>
-            </div>
-          `;
-          break;
-          
-        case 'bothLBAcross':
-          html += `
-            <div class="logic-box">
-              <strong>Both Team & Individual Leaderboard (Across Teams) Tabs Available</strong>
-              <p>User can switch to "Leaderboard" tab to see:</p>
-              <ul>
-                <li>Team leaderboard (top 10 teams)</li>
-                <li>Individual leaderboard across all participants (top 20)</li>
-              </ul>
-            </div>
-          `;
-          break;
-          
-        case 'socialNorm':
-          html += `
-            <div class="logic-box">
-              <strong>Social Norm Information Shown</strong>
-              <p>User sees team statistics:</p>
-              <ul>
-                <li>Team average contribution</li>
-                <li>Standard deviation of team contributions</li>
-                <li>Shown in decision tab and leaderboard tab</li>
-              </ul>
-            </div>
-          `;
-          break;
-          
-        case 'indLBAcross':
-          html += `
-            <div class="logic-box">
-              <strong>Individual Leaderboard (Across Teams) Tab Available</strong>
-              <p>User can switch to "Leaderboard" tab to see:</p>
-              <ul>
-                <li>Top 20 participants across all teams</li>
-                <li>Ranked by total contributions</li>
-              </ul>
-            </div>
-          `;
-          break;
-      }
       
       html += '</div>';
       return html;
     }
     
-    function generateAfterDecisionView(cell) {
-      let html = '<div class="after-decision">';
-      
-      // Common results
-      html += `
-        <div class="logic-box">
-          <strong>Common Results Display (All Cells):</strong>
-          <ul>
-            <li>Your contribution: X tokens</li>
-            <li>Group total: Y tokens</li>
-            <li>Your share: Z tokens</li>
-            <li>Your payoff: W tokens</li>
-            <li>Cumulative payoff: V tokens</li>
-            <li>Results appear after configurable delay (default: 3 seconds)</li>
-            <li>Decision section hides, results section appears</li>
-          </ul>
-        </div>
-      `;
-      
-      // Info-specific after-decision display
+    function generateBeforeDecisionInfo(cell) {
       switch(cell.infoType) {
         case 'noInfo':
-          html += `
-            <div class="logic-box">
-              <strong>No Additional Information After Decision</strong>
-              <p>User only sees results, no leaderboards or social norms.</p>
-            </div>
-          `;
-          break;
+          return '';
           
         case 'teamLB':
         case 'indLBWithin':
         case 'bothLBWithin':
         case 'bothLBAcross':
         case 'indLBAcross':
-          html += `
-            <div class="logic-box">
-              <strong>Leaderboard Tab Auto-Switches</strong>
-              <p>After showing results, automatically switches to "Leaderboard" tab showing:</p>
-              ${getLeaderboardInfo(cell.infoType)}
+          return `
+            <div style="margin-top: 30px; padding: 15px; background: #f0f7ff; border-radius: 8px; border-left: 4px solid #667eea;">
+              <strong>ℹ️ Leaderboard Available</strong>
+              <p style="margin: 10px 0 0 0; color: #666;">Switch to the "Leaderboard" tab to view rankings.</p>
             </div>
           `;
-          break;
           
         case 'socialNorm':
-          html += `
-            <div class="logic-box">
-              <strong>Social Norm Information Updated</strong>
-              <p>Team statistics updated with current round contributions:</p>
-              <ul>
-                <li>Team average: X tokens</li>
-                <li>Standard deviation: Y tokens</li>
-                <li>Shown in leaderboard tab</li>
-              </ul>
+          return `
+            <div class="mockup-social-norm">
+              <h4>Team Statistics</h4>
+              <div class="mockup-social-norm-stats">
+                <div class="mockup-social-norm-stat">
+                  <div class="label">Team Average</div>
+                  <div class="value">12.5</div>
+                </div>
+                <div class="mockup-social-norm-stat">
+                  <div class="label">Std Deviation</div>
+                  <div class="value">4.2</div>
+                </div>
+              </div>
             </div>
           `;
-          break;
+          
+        default:
+          return '';
       }
+    }
+    
+    function generateAfterDecisionView(cell) {
+      let html = '<div class="after-decision">';
+      
+      // Visual mockup of the screen after decision
+      html += `
+        <div class="screen-mockup">
+          <div class="screen-mockup-content">
+            <!-- Header -->
+            <div class="mockup-header">
+              <div class="mockup-header-left">
+                <div class="mockup-round">Round 1 of 10</div>
+                <div class="mockup-timer" style="color: #27ae60;">Round Complete</div>
+              </div>
+              <div class="mockup-header-right">
+                <div class="mockup-id">ID: UID-1234567890-ABCDEF</div>
+                <div class="mockup-tokens">Your Tokens: 20</div>
+              </div>
+            </div>
+            
+            <!-- Tabs -->
+            <div class="mockup-tabs">
+              <button class="mockup-tab">Decision</button>
+              <button class="mockup-tab active">Leaderboard</button>
+            </div>
+            
+            <!-- Results Section -->
+            <div class="mockup-results">
+              <h3>Round Results</h3>
+              <div class="mockup-results-grid">
+                <div class="mockup-result-item">
+                  <div class="label">Your Contribution</div>
+                  <div class="value">10</div>
+                  <div style="font-size: 12px; color: #666;">tokens</div>
+                </div>
+                <div class="mockup-result-item">
+                  <div class="label">Group Total</div>
+                  <div class="value">65</div>
+                  <div style="font-size: 12px; color: #666;">tokens</div>
+                </div>
+                <div class="mockup-result-item">
+                  <div class="label">Your Share</div>
+                  <div class="value">10.8</div>
+                  <div style="font-size: 12px; color: #666;">tokens</div>
+                </div>
+                <div class="mockup-result-item">
+                  <div class="label">Your Payoff</div>
+                  <div class="value">20.8</div>
+                  <div style="font-size: 12px; color: #666;">tokens</div>
+                </div>
+              </div>
+              <div style="text-align: center; margin-top: 20px; padding: 15px; background: #e8f5e9; border-radius: 8px;">
+                <strong style="color: #27ae60;">Cumulative Payoff: 20.8 tokens</strong>
+              </div>
+            </div>
+            
+            ${generateAfterDecisionInfo(cell)}
+          </div>
+        </div>
+      `;
       
       html += '</div>';
       return html;
+    }
+    
+    function generateAfterDecisionInfo(cell) {
+      switch(cell.infoType) {
+        case 'noInfo':
+          return '';
+          
+        case 'teamLB':
+          return `
+            <div class="mockup-leaderboard">
+              <h3>Team Leaderboard</h3>
+              <table class="mockup-table">
+                <thead>
+                  <tr>
+                    <th>Rank</th>
+                    <th>Team</th>
+                    <th>Total Contribution</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr class="highlight">
+                    <td>1</td>
+                    <td><strong>Your Team</strong></td>
+                    <td>65</td>
+                  </tr>
+                  <tr>
+                    <td>2</td>
+                    <td>Team 1</td>
+                    <td>58</td>
+                  </tr>
+                  <tr>
+                    <td>3</td>
+                    <td>Team 2</td>
+                    <td>52</td>
+                  </tr>
+                  <tr>
+                    <td>4</td>
+                    <td>Team 3</td>
+                    <td>45</td>
+                  </tr>
+                  <tr>
+                    <td>5</td>
+                    <td>Team 4</td>
+                    <td>38</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          `;
+          
+        case 'indLBWithin':
+          return `
+            <div class="mockup-leaderboard">
+              <h3>Individual Leaderboard (Your Team)</h3>
+              <table class="mockup-table">
+                <thead>
+                  <tr>
+                    <th>Rank</th>
+                    <th>Member</th>
+                    <th>Total Contribution</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>1</td>
+                    <td>Team Member 3</td>
+                    <td>15</td>
+                  </tr>
+                  <tr>
+                    <td>2</td>
+                    <td>Team Member 1</td>
+                    <td>12</td>
+                  </tr>
+                  <tr class="highlight">
+                    <td>3</td>
+                    <td><strong>You</strong></td>
+                    <td>10</td>
+                  </tr>
+                  <tr>
+                    <td>4</td>
+                    <td>Team Member 2</td>
+                    <td>8</td>
+                  </tr>
+                  <tr>
+                    <td>5</td>
+                    <td>Team Member 4</td>
+                    <td>6</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          `;
+          
+        case 'bothLBWithin':
+          return `
+            <div class="mockup-leaderboard">
+              <h3>Team Leaderboard</h3>
+              <table class="mockup-table" style="margin-bottom: 30px;">
+                <thead>
+                  <tr>
+                    <th>Rank</th>
+                    <th>Team</th>
+                    <th>Total Contribution</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr class="highlight">
+                    <td>1</td>
+                    <td><strong>Your Team</strong></td>
+                    <td>65</td>
+                  </tr>
+                  <tr>
+                    <td>2</td>
+                    <td>Team 1</td>
+                    <td>58</td>
+                  </tr>
+                  <tr>
+                    <td>3</td>
+                    <td>Team 2</td>
+                    <td>52</td>
+                  </tr>
+                </tbody>
+              </table>
+              
+              <h3>Individual Leaderboard (Your Team)</h3>
+              <table class="mockup-table">
+                <thead>
+                  <tr>
+                    <th>Rank</th>
+                    <th>Member</th>
+                    <th>Total Contribution</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>1</td>
+                    <td>Team Member 3</td>
+                    <td>15</td>
+                  </tr>
+                  <tr class="highlight">
+                    <td>2</td>
+                    <td><strong>You</strong></td>
+                    <td>10</td>
+                  </tr>
+                  <tr>
+                    <td>3</td>
+                    <td>Team Member 1</td>
+                    <td>8</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          `;
+          
+        case 'bothLBAcross':
+          return `
+            <div class="mockup-leaderboard">
+              <h3>Team Leaderboard</h3>
+              <table class="mockup-table" style="margin-bottom: 30px;">
+                <thead>
+                  <tr>
+                    <th>Rank</th>
+                    <th>Team</th>
+                    <th>Total Contribution</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr class="highlight">
+                    <td>1</td>
+                    <td><strong>Your Team</strong></td>
+                    <td>65</td>
+                  </tr>
+                  <tr>
+                    <td>2</td>
+                    <td>Team 1</td>
+                    <td>58</td>
+                  </tr>
+                </tbody>
+              </table>
+              
+              <h3>Individual Leaderboard (All Teams)</h3>
+              <table class="mockup-table">
+                <thead>
+                  <tr>
+                    <th>Rank</th>
+                    <th>Participant</th>
+                    <th>Total Contribution</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>1</td>
+                    <td>Team Member 5</td>
+                    <td>18</td>
+                  </tr>
+                  <tr class="highlight">
+                    <td>5</td>
+                    <td><strong>You</strong></td>
+                    <td>10</td>
+                  </tr>
+                  <tr>
+                    <td>6</td>
+                    <td>Team Member 2</td>
+                    <td>9</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          `;
+          
+        case 'socialNorm':
+          return `
+            <div class="mockup-social-norm">
+              <h4>Team Statistics</h4>
+              <div class="mockup-social-norm-stats">
+                <div class="mockup-social-norm-stat">
+                  <div class="label">Team Average</div>
+                  <div class="value">13.0</div>
+                </div>
+                <div class="mockup-social-norm-stat">
+                  <div class="label">Std Deviation</div>
+                  <div class="value">4.5</div>
+                </div>
+              </div>
+            </div>
+          `;
+          
+        case 'indLBAcross':
+          return `
+            <div class="mockup-leaderboard">
+              <h3>Individual Leaderboard (All Teams)</h3>
+              <table class="mockup-table">
+                <thead>
+                  <tr>
+                    <th>Rank</th>
+                    <th>Participant</th>
+                    <th>Total Contribution</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>1</td>
+                    <td>Team Member 5</td>
+                    <td>18</td>
+                  </tr>
+                  <tr>
+                    <td>2</td>
+                    <td>Team Member 3</td>
+                    <td>15</td>
+                  </tr>
+                  <tr class="highlight">
+                    <td>5</td>
+                    <td><strong>You</strong></td>
+                    <td>10</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          `;
+          
+        default:
+          return '';
+      }
     }
     
     function getLeaderboardInfo(infoType) {
