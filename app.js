@@ -2054,15 +2054,22 @@ async function loadIndividualLeaderboardWithinTeam() {
   }
   
   // Get all contributions for this group - only current user and simulated members
-  const allContributionsSnapshot = await db.collection('contributions')
-    .where('groupId', '==', groupId)
-    .get();
+  // Show loading state in tbody
+  const tbody = document.getElementById('individualWithinTeamBody');
+  if (tbody) {
+    tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; padding: 20px; color: #999;">Loading...</td></tr>';
+  }
   
-  // Get current round contributions
-  const currentRoundContributionsSnapshot = await db.collection('contributions')
-    .where('groupId', '==', groupId)
-    .where('round', '==', currentRound)
-    .get();
+  // Do both queries in parallel
+  const [allContributionsSnapshot, currentRoundContributionsSnapshot] = await Promise.all([
+    db.collection('contributions')
+      .where('groupId', '==', groupId)
+      .get(),
+    db.collection('contributions')
+      .where('groupId', '==', groupId)
+      .where('round', '==', currentRound)
+      .get()
+  ]);
   
   // Calculate cumulative totals from contributions ONLY (not from participants.totalContribution to avoid double-counting)
   allContributionsSnapshot.forEach(doc => {
@@ -2168,15 +2175,16 @@ async function loadIndividualLeaderboardAcrossTeams() {
     allContributionsSnapshot = { docs: [] };
     currentRoundContributionsSnapshot = { docs: [] };
   } else if (userTeamIds.length <= 10) {
-    // Single query if 10 or fewer teams
-    allContributionsSnapshot = await db.collection('contributions')
-      .where('groupId', 'in', userTeamIds)
-      .get();
-    
-    currentRoundContributionsSnapshot = await db.collection('contributions')
-      .where('groupId', 'in', userTeamIds)
-      .where('round', '==', currentRound)
-      .get();
+    // Single query if 10 or fewer teams - do both queries in parallel
+    [allContributionsSnapshot, currentRoundContributionsSnapshot] = await Promise.all([
+      db.collection('contributions')
+        .where('groupId', 'in', userTeamIds)
+        .get(),
+      db.collection('contributions')
+        .where('groupId', 'in', userTeamIds)
+        .where('round', '==', currentRound)
+        .get()
+    ]);
   } else {
     // Batch queries if more than 10 teams (shouldn't happen, but handle it)
     const batches = [];
@@ -2185,24 +2193,37 @@ async function loadIndividualLeaderboardAcrossTeams() {
       batches.push(batch);
     }
     
+    // Execute all batch queries in parallel
+    const batchPromises = batches.map(async (batch) => {
+      const [batchSnapshot, roundBatchSnapshot] = await Promise.all([
+        db.collection('contributions')
+          .where('groupId', 'in', batch)
+          .get(),
+        db.collection('contributions')
+          .where('groupId', 'in', batch)
+          .where('round', '==', currentRound)
+          .get()
+      ]);
+      return { all: batchSnapshot.docs, round: roundBatchSnapshot.docs };
+    });
+    
+    const batchResults = await Promise.all(batchPromises);
     const allDocs = [];
     const currentRoundDocs = [];
     
-    for (const batch of batches) {
-      const batchSnapshot = await db.collection('contributions')
-        .where('groupId', 'in', batch)
-        .get();
-      allDocs.push(...batchSnapshot.docs);
-      
-      const roundBatchSnapshot = await db.collection('contributions')
-        .where('groupId', 'in', batch)
-        .where('round', '==', currentRound)
-        .get();
-      currentRoundDocs.push(...roundBatchSnapshot.docs);
-    }
+    batchResults.forEach(result => {
+      allDocs.push(...result.all);
+      currentRoundDocs.push(...result.round);
+    });
     
     allContributionsSnapshot = { docs: allDocs };
     currentRoundContributionsSnapshot = { docs: currentRoundDocs };
+  }
+  
+  // Show loading state
+  const tbody = document.getElementById('individualAcrossTeamsBody');
+  if (tbody) {
+    tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; padding: 20px; color: #999;">Loading...</td></tr>';
   }
   
   // Create a map to track team numbers for each groupId
