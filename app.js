@@ -461,9 +461,9 @@ async function startExperiment() {
       // Generate randomized sequence of within-subject factor combinations
       experimentConfig.withinSubjectSequence = generateWithinSubjectSequence(totalRounds);
       
-      // Create 10 teams for this user's experiment and assign user to team 3
+      // Create 10 teams for this user's experiment and assign user to team 5
       const userTeams = await createUserExperimentTeams(participantId);
-      groupId = userTeams.userTeamId; // User is assigned to team 3
+      groupId = userTeams.userTeamId; // User is assigned to team 5
       
       // Generate simulated team member contributions for all 10 teams
       for (const teamId of userTeams.allTeamIds) {
@@ -533,7 +533,7 @@ async function startExperiment() {
 // Create 10 teams for a new user's experiment
 async function createUserExperimentTeams(pid) {
   const allTeamIds = [];
-  let userTeamId = null; // User will be assigned to team 3
+  let userTeamId = null; // User will be assigned to team 5
   
   // Create 10 teams
   for (let teamNum = 1; teamNum <= 10; teamNum++) {
@@ -541,8 +541,8 @@ async function createUserExperimentTeams(pid) {
     const teamId = newGroupRef.id;
     allTeamIds.push(teamId);
     
-    // Team 3 is the user's team
-    if (teamNum === 3) {
+    // Team 5 is the user's team
+    if (teamNum === 5) {
       userTeamId = teamId;
       await newGroupRef.set({
         groupId: teamId,
@@ -1493,7 +1493,7 @@ async function loadTeamLeaderboard() {
     row.insertCell(0).textContent = index + 1;
     let teamName;
     if (team.isFocal) {
-      teamName = 'Your Team'; // Display as "Your Team" but internally it's Team 3
+      teamName = 'Your Team'; // Display as "Your Team" but internally it's Team 5
     } else {
       const teamNum = teamNumberMap.get(team.id) || availableNumbers[numberIndex % availableNumbers.length];
       teamName = `Team ${teamNum}`;
@@ -1811,7 +1811,7 @@ async function loadTeamLeaderboardForTab() {
     row.insertCell(0).textContent = index + 1;
     let teamName;
     if (team.isFocal) {
-      teamName = 'Your Team'; // Display as "Your Team" but internally it's Team 3
+      teamName = 'Your Team'; // Display as "Your Team" but internally it's Team 5
     } else {
       const teamNum = teamNumberMap.get(team.id) || availableNumbers[numberIndex % availableNumbers.length];
       teamName = `Team ${teamNum}`;
@@ -1999,7 +1999,7 @@ async function loadIndividualLeaderboardAcrossTeams() {
   userGroupsSnapshot.forEach(doc => {
     const data = doc.data();
     const gid = doc.id;
-    const teamNum = data.teamNumber || 3; // Default to 3 if not set
+    const teamNum = data.teamNumber || 5; // Default to 5 if not set
     teamNumberMap.set(gid, teamNum);
   });
   
