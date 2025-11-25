@@ -1,6 +1,6 @@
-# Free-Riding Experiment Application
+# Decision-Making Experiment Application
 
-A comprehensive web application for conducting free-riding experiments based on public goods game design. This application implements configurable treatment conditions, simulated team members, and real-time leaderboards to study individual decision-making in group settings.
+A comprehensive web application for conducting decision-making experiments based on public goods game design. This application implements configurable treatment conditions, simulated team members, and real-time leaderboards to study individual decision-making in group settings.
 
 ## Table of Contents
 
@@ -162,6 +162,40 @@ If a participant contributes 10 tokens and their group of 4 contributes 40 token
 **Default**: Disabled
 
 **Display**: Shows top 20 participants ranked by total contributions.
+
+---
+
+### Factor 8: Focal Member Team Rank
+
+**Description**: Where the focal user's team appears in the team leaderboard.
+
+**Levels**:
+- **High**: Focal user's team appears at the top of the team leaderboard
+- **Middle**: Focal user's team appears in the middle of the team leaderboard
+- **Low**: Focal user's team appears at the bottom of the team leaderboard
+
+**Default**: Middle
+
+**Implementation**: Simulated teams are created with adjusted total contributions to position the focal team at the desired rank. The focal team is highlighted in the leaderboard.
+
+---
+
+### Factor 9: Team Leaderboard Ranking Stability
+
+**Description**: Whether the focal team's position in the team leaderboard changes across rounds.
+
+**Levels**:
+- **Stable**: Focal team's position stays the same across all rounds
+  - If set to "high", team stays at top throughout
+  - If set to "middle", team stays in middle throughout
+  - If set to "low", team stays at bottom throughout
+- **Dynamic**: Focal team's position changes across rounds
+  - Position varies based on round number
+  - Creates more uncertainty about team performance
+
+**Default**: Stable
+
+**Implementation**: For dynamic condition, team position cycles through different ranks based on round number while maintaining the general rank category (high/middle/low).
 
 ---
 
@@ -491,11 +525,20 @@ Check/uncheck:
 
 #### `participants`
 - `participantId` (string): Unique participant identifier
-- `groupId` (string): Assigned group ID
+- `groupId` (string): Assigned group ID (same for all rounds)
 - `currentRound` (number): Current round number
 - `totalContribution` (number): Sum of all contributions
 - `cumulativePayoff` (number): Total payoff across all rounds
-- `experimentConfig` (object): Experiment configuration for this participant
+- `experimentConfig` (object): **Complete treatment configuration with all 9 factors**:
+  - `infoDisplayTiming`: 'eachRound' or 'endOnly'
+  - `focalUserCondition`: 'freeRider' or 'random'
+  - `leaderboardStability`: 'stable' or 'dynamic'
+  - `socialNormDisplay`: 'none', 'avgOnly', or 'avgAndStdDev'
+  - `focalMemberTeamRank`: 'high', 'middle', or 'low'
+  - `teamLeaderboardRankingStability`: 'stable' or 'dynamic'
+  - `showTeamLeaderboard`: boolean
+  - `showIndividualLeaderboardWithinTeam`: boolean
+  - `showIndividualLeaderboardAcrossTeams`: boolean
 - `status` (string): 'active' or 'completed'
 - `createdAt` (timestamp): When participant started
 - `lastActivity` (timestamp): Last activity time
@@ -503,11 +546,13 @@ Check/uncheck:
 #### `contributions`
 - `participantId` (string): Who made the contribution
 - `groupId` (string): Which group
-- `round` (number): Round number
-- `contribution` (number): Amount contributed
+- `round` (number): Round number (1-10)
+- `contribution` (number): Amount contributed (0 to endowment)
 - `endowment` (number): Endowment for this round
 - `isSimulated` (boolean): Whether this is a simulated member
-- `timestamp` (timestamp): When contribution was made
+- `treatmentConditions` (object): **Complete treatment information at time of decision** (same structure as experimentConfig)
+- `timestamp` (timestamp): Server timestamp
+- `submittedAt` (number): Client timestamp (milliseconds)
 
 #### `payoffs`
 - `participantId` (string): Who received the payoff
@@ -516,8 +561,9 @@ Check/uncheck:
 - `contribution` (number): Participant's contribution
 - `groupTotal` (number): Total group contribution
 - `groupShare` (number): Share from group project
-- `kept` (number): Tokens kept
+- `kept` (number): Tokens kept (endowment - contribution)
 - `payoff` (number): Total payoff for this round
+- `treatmentConditions` (object): **Complete treatment information** (null for simulated members)
 - `timestamp` (timestamp): When payoff was calculated
 
 #### `groups`
@@ -612,6 +658,39 @@ freeriding/
 │       └── deploy.yml      # CI/CD pipeline
 └── README.md               # This file
 ```
+
+## Data Tracking and Analysis
+
+### Complete Treatment Tracking
+
+**Every action stores complete treatment information**:
+
+1. **Participant Assignment**: Stored in `participants.experimentConfig`
+2. **Each Contribution**: Stored in `contributions.treatmentConditions`
+3. **Each Payoff**: Stored in `payoffs.treatmentConditions`
+
+This ensures:
+- Complete data for analysis
+- Ability to track treatment effects
+- Round-by-round treatment context
+- Data integrity even if settings change
+
+### Data Export
+
+The admin dashboard export includes:
+- All participant actions (contributions, payoffs)
+- **All 9 treatment factors as separate columns**:
+  - Info Timing
+  - Focal Condition
+  - LB Stability
+  - Social Norm
+  - Team Rank
+  - Team Rank Stability
+  - Team LB (Y/N)
+  - Ind LB Team (Y/N)
+  - Ind LB All (Y/N)
+
+See `DATA_STORAGE.md` for complete data structure documentation.
 
 ## References
 
