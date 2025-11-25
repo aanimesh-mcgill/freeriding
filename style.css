@@ -395,6 +395,16 @@ body {
   color: #667eea;
 }
 
+.leaderboard-section {
+  margin-bottom: 30px;
+}
+
+.leaderboard-section h3 {
+  color: #667eea;
+  margin-bottom: 15px;
+  font-size: 20px;
+}
+
 .submitted-message {
   text-align: center;
   padding: 15px;

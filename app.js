@@ -178,9 +178,10 @@ async function startExperiment() {
       currentRound = data.currentRound || 1;
       groupId = data.groupId || '';
       cumulativePayoff = data.cumulativePayoff || 0;
-      showTeamLeaderboard = data.showTeamLeaderboard || false;
-      showIndividualLeaderboard = data.showIndividualLeaderboard || false;
-      showContributionComparison = data.showContributionComparison || false;
+      // Load experiment config from participant record
+      if (data.experimentConfig) {
+        experimentConfig = { ...experimentConfig, ...data.experimentConfig };
+      }
       
       if (currentRound > totalRounds) {
         showEndScreen();
@@ -415,12 +416,14 @@ async function loadRound() {
   // Update treatment panels visibility
   updateTreatmentPanels();
   
-  // Load leaderboards if needed
-  if (showTeamLeaderboard) {
-    await loadTeamLeaderboard();
-  }
-  if (showIndividualLeaderboard) {
-    await loadIndividualLeaderboard();
+  // Load leaderboards if timing is each round
+  if (experimentConfig.infoDisplayTiming === 'eachRound') {
+    await loadLeaderboards();
+    
+    // Show social norm if enabled
+    if (experimentConfig.socialNormDisplay !== 'none') {
+      await showSocialNorm();
+    }
   }
 }
 
@@ -706,10 +709,8 @@ async function showRoundResults() {
       }
     }
     
-    // Update contribution comparison if shown
-    if (showContributionComparison) {
-      updateContributionComparison();
-    }
+    // Update contribution comparison if shown (for backward compatibility)
+    // This is now handled by social norm display
   }, resultsDelay * 1000);
 }
 
