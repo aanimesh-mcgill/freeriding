@@ -248,21 +248,34 @@ async function runStatisticalAnalysis() {
         const prevRoundData = rounds[index - 1];
         const currentContribution = roundData.contribution;
         
-        // Build feature vector
+        // Build feature vector - initialize variable names only once
+        if (variableNames.length === 1) {
+          // Previous round controls
+          variableNames.push('Previous Contribution');
+          variableNames.push('Previous Payoff');
+          variableNames.push('Previous Group Total');
+          variableNames.push('Round Number');
+          
+          // Info Type dummy variables (noInfo is reference category)
+          const infoTypes = ['noInfo', 'teamLB', 'indLBWithin', 'bothLBWithin', 'bothLBAcross', 'socialNorm', 'indLBAcross'];
+          for (let idx = 1; idx < infoTypes.length; idx++) {
+            variableNames.push(`Info: ${infoTypes[idx]}`);
+          }
+          
+          // Other treatment variables
+          variableNames.push('Focal User: Higher (vs Lower)');
+          variableNames.push('Team Contribution: High (vs Low)');
+          variableNames.push('Ind LB Stability: High (vs Low)');
+          variableNames.push('Team LB Stability: High (vs Low)');
+        }
+        
         const features = [1]; // Intercept
         
         // Previous round controls
         features.push(prevRoundData.contribution || 0); // Lagged contribution
-        variableNames.push('Previous Contribution');
-        
         features.push(prevRoundData.payoff || 0); // Previous payoff
-        variableNames.push('Previous Payoff');
-        
         features.push(prevRoundData.groupTotal || 0); // Previous group total
-        variableNames.push('Previous Group Total');
-        
         features.push(roundData.round); // Round number
-        variableNames.push('Round Number');
         
         // Treatment conditions (dummy variables)
         const treatments = roundData.treatmentConditions || participant.experimentConfig || {};
@@ -270,27 +283,21 @@ async function runStatisticalAnalysis() {
         // Info Type (7 levels: noInfo, teamLB, indLBWithin, bothLBWithin, bothLBAcross, socialNorm, indLBAcross)
         const infoType = treatments.infoType || 'noInfo';
         const infoTypes = ['noInfo', 'teamLB', 'indLBWithin', 'bothLBWithin', 'bothLBAcross', 'socialNorm', 'indLBAcross'];
-        infoTypes.forEach((type, idx) => {
-          if (idx === 0) return; // Use noInfo as reference
-          features.push(infoType === type ? 1 : 0);
-          variableNames.push(`Info: ${type}`);
-        });
+        for (let idx = 1; idx < infoTypes.length; idx++) {
+          features.push(infoType === infoTypes[idx] ? 1 : 0);
+        }
         
         // Focal User Contribution Level (2 levels: lower, higher)
         features.push(treatments.focalUserContributionLevel === 'higher' ? 1 : 0);
-        variableNames.push('Focal User: Higher (vs Lower)');
         
         // Team Contribution (2 levels: high, low)
         features.push(treatments.teamContribution === 'high' ? 1 : 0);
-        variableNames.push('Team Contribution: High (vs Low)');
         
         // Individual LB Stability (2 levels: high, low)
         features.push(treatments.individualLBStability === 'high' ? 1 : 0);
-        variableNames.push('Ind LB Stability: High (vs Low)');
         
         // Team LB Stability (2 levels: high, low)
         features.push(treatments.teamLBStability === 'high' ? 1 : 0);
-        variableNames.push('Team LB Stability: High (vs Low)');
         
         regressionData.push({
           features: features,
